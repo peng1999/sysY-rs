@@ -1,0 +1,20 @@
+Prog = _{ SOI ~ Expr ~ EOI }
+
+Expr = _{ AddExpr }
+AddExpr = _{ AddTerm | MulExpr }
+MulExpr = _{ MulTerm | UnaryExpr }
+UnaryExpr = _{ UnaryTerm | Scalar }
+Scalar = _{ NumLit | Ident | "(" ~ Expr ~ ")" }
+
+AddTerm = { MulExpr ~ (AddOp ~ MulExpr)+ }
+MulTerm = { UnaryExpr ~ (MulOp ~ UnaryExpr)+ }
+UnaryTerm = { UnaryOp ~ UnaryExpr }
+
+NumLit = @{ ASCII_DIGIT+ }
+Ident = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }
+
+AddOp = { "-" | "+" }
+MulOp = { "*" | "/" | "%" }
+UnaryOp = { "+" | "-" | "*" }
+
+WHITESPACE = _{ " " | "\t" | "\n" }
