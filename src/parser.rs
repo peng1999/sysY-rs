@@ -1,8 +1,76 @@
 use pest::{iterators::Pair, Parser};
 
+use crate::ast;
+
 #[derive(Parser)]
 #[grammar = "syntax.pest"]
 pub struct SysYParser;
+
+pub fn parse(source: String) -> anyhow::Result<ast::Expr> {
+    let mut result = SysYParser::parse(Rule::Expr, &source)?;
+    let pair = result.next().unwrap();
+    Ok(parse_expr(pair))
+}
+
+fn parse_expr(pair: Pair<Rule>) -> ast::Expr {
+    match pair.as_rule() {
+        Rule::AddTerm | Rule::MulTerm => {
+            let mut pairs = pair.into_inner();
+            let lhs = parse_expr(pairs.next().unwrap());
+            let op = parse_bin_op(pairs.next().unwrap());
+            let rhs = parse_expr(pairs.next().unwrap());
+            let mut expr = ast::Expr::Binary(op, Box::new(lhs), Box::new(rhs));
+            while let Some(op) = pairs.next() {
+                let rhs = parse_expr(pairs.next().unwrap());
+                expr = ast::Expr::Binary(parse_bin_op(op), Box::new(expr), Box::new(rhs));
+            }
+            expr
+        }
+        Rule::UnaryTerm => {
+            let mut pairs = pair.into_inner();
+            let op = parse_un_op(pairs.next().unwrap());
+            let hs = parse_expr(pairs.next().unwrap());
+            ast::Expr::Unary(op, Box::new(hs))
+        }
+        Rule::CallTerm => {
+            let mut pairs = pair.into_inner();
+            let name = parse_expr(pairs.next().unwrap());
+            let parms: Vec<_> = pairs.map(parse_expr).collect();
+            ast::Expr::Call(Box::new(name), parms)
+        }
+        Rule::SubTerm => {
+            let mut pairs = pair.into_inner();
+            let name = parse_expr(pairs.next().unwrap());
+            let parms: Vec<_> = pairs.map(parse_expr).collect();
+            ast::Expr::Index(Box::new(name), parms)
+        }
+        Rule::NumLit => ast::Expr::Lit(pair.as_str().parse().unwrap()),
+        Rule::Ident => ast::Expr::Ident(pair.as_str().to_owned()),
+        _ => panic!(),
+    }
+}
+
+fn parse_bin_op(pair: Pair<Rule>) -> ast::BinOp {
+    use ast::BinOp::*;
+
+    match pair.as_str() {
+        "+" => Add,
+        "-" => Sub,
+        "*" => Mul,
+        "/" => Div,
+        "%" => Rem,
+        _ => unimplemented!(),
+    }
+}
+
+fn parse_un_op(pair: Pair<Rule>) -> ast::UnOp {
+    match pair.as_str() {
+        "+" => ast::UnOp::Pos,
+        "-" => ast::UnOp::Neg,
+        "!" => ast::UnOp::Not,
+        _ => panic!(),
+    }
+}
 
 pub fn run(source: String) {
     let result = SysYParser::parse(Rule::Prog, &source);

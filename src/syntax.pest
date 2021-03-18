@@ -31,7 +31,7 @@ AddTerm = { MulExpr ~ (AddOp ~ MulExpr)+ }
 MulTerm = { UnaryExpr ~ (MulOp ~ UnaryExpr)+ }
 UnaryTerm = { UnaryOp ~ UnaryExpr }
 CallTerm = { Ident ~ "(" ~ (Expr ~ ("," ~ Expr)*)? ~ ")" }
-SubTerm = { Ident ~ "[" ~ Expr ~ "]" }
+SubTerm = { Ident ~ ("[" ~ Expr ~ "]")+ }
 
 BType = { "int" }
 
