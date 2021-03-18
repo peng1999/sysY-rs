@@ -1,4 +1,12 @@
 #[derive(Debug)]
+pub enum Stmt {
+    Block(Vec<Stmt>),
+    Assign(Box<Expr>, Box<Expr>),
+    Expr(Expr),
+    Break,
+}
+
+#[derive(Debug)]
 pub enum Expr {
     Binary(BinOp, Box<Expr>, Box<Expr>),
     Unary(UnOp, Box<Expr>),
@@ -31,3 +39,4 @@ pub enum UnOp {
     Neg,
     Not,
 }
+

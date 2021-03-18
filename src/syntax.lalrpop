@@ -1,36 +1,47 @@
 use std::str::FromStr;
 
-use crate::ast::Expr as AstExpr;
 use crate::ast;
 
 grammar;
 
-pub Expr: AstExpr = AddExpr;
+pub Stmt: ast::Stmt = {
+    <Expr> ";" => ast::Stmt::Expr(<>),
+    <l:Expr> "=" <r:Expr> ";" => ast::Stmt::Assign(Box::new(l), Box::new(r)),
+    "{" <StmtList> "}" => ast::Stmt::Block(<>),
+    "{" "}" => ast::Stmt::Block(vec![]),
+}
+
+StmtList: Vec<ast::Stmt> = {
+    Stmt                        => vec![<>],
+    <mut l:StmtList> <s:Stmt>   => { l.push(s); l },
+}
+
+pub Expr: ast::Expr = AddExpr;
 
 AddExpr = {
     MulExpr,
-    <l:AddExpr> <op:AddOp> <r:MulExpr> => AstExpr::Binary(op, Box::new(l), Box::new(r)),
+    <l:AddExpr> <op:AddOp> <r:MulExpr> => ast::Expr::Binary(op, Box::new(l), Box::new(r)),
 }
 
 MulExpr = {
     UnaryExpr,
-    <l:MulExpr> <op:MulOp> <r:UnaryExpr> => AstExpr::Binary(op, Box::new(l), Box::new(r)),
+    <l:MulExpr> <op:MulOp> <r:UnaryExpr> => ast::Expr::Binary(op, Box::new(l), Box::new(r)),
 }
 
 UnaryExpr = {
-    <op:UnaryOp> <e:UnaryExpr>          => AstExpr::Unary(op, Box::new(e)),
-    <name:Ident> "(" <p:ParamList> ")"  => AstExpr::Call(Box::new(name), p),
-    <name:Ident> "(" ")"                => AstExpr::Call(Box::new(name), vec![]),
-    <name:Ident> <p:IndexList>          => AstExpr::Call(Box::new(name), p),
+    <op:UnaryOp> <e:UnaryExpr>          => ast::Expr::Unary(op, Box::new(e)),
+    <name:Ident> "(" <p:ParamList> ")"  => ast::Expr::Call(Box::new(name), p),
+    <name:Ident> "(" ")"                => ast::Expr::Call(Box::new(name), vec![]),
+    <name:Ident> <p:IndexList>          => ast::Expr::Call(Box::new(name), p),
     Scalar,
 }
 
-ParamList: Vec<AstExpr> = {
+ParamList: Vec<ast::Expr> = {
     Expr => vec![<>],
     <mut p:ParamList> "," <e:Expr> => { p.push(e); p },
 }
 
-IndexList: Vec<AstExpr> = {
+IndexList: Vec<ast::Expr> = {
     "[" <Expr> "]"                      => vec![<>],
     <mut p:IndexList> "[" <e:Expr> "]"  => { p.push(e); p },
 }
@@ -45,8 +56,8 @@ Scalar = {
 // Tokens
 //
 
-NumLit: AstExpr = r"[0-9]+" => AstExpr::Lit(i32::from_str(<>).unwrap());
-Ident: AstExpr = r"[a-zA-Z][a-zA-Z0-9]*" => AstExpr::Ident(<>.to_owned());
+NumLit: ast::Expr = r"[0-9]+" => ast::Expr::Lit(i32::from_str(<>).unwrap());
+Ident: ast::Expr = r"[a-zA-Z][a-zA-Z0-9]*" => ast::Expr::Ident(<>.to_owned());
 
 UnaryOp: ast::UnOp = {
     "+" => ast::UnOp::Pos,

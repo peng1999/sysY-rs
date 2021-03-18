@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
         let ast_tree = parser::parse(source)?;
         println!("{:#?}", ast_tree);
     } else {
-        let parser = syntax::ExprParser::new();
+        let parser = syntax::StmtParser::new();
         let ast_tree = parser.parse(&source);
         println!("{:#?}", ast_tree);
     }
