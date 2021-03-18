@@ -1,11 +1,12 @@
 #![feature(io_read_to_string)]
 
-#[macro_use]
-extern crate pest_derive;
+#[macro_use] extern crate pest_derive;
+#[macro_use] extern crate lalrpop_util;
 
+mod ast;
 mod lexer;
 mod parser;
-mod ast;
+lalrpop_mod!(pub syntax);
 
 use std::io;
 
@@ -14,10 +15,14 @@ fn main() -> anyhow::Result<()> {
     let arg1 = std::env::args().nth(1);
     if let Some("lexer") = arg1.as_deref() {
         lexer::run(source);
-    } else if let Some("parser") = arg1.as_deref() {
+    } else if let Some("pest") = arg1.as_deref() {
         parser::run(source);
-    } else {
+    } else if let Some("ast") = arg1.as_deref() {
         let ast_tree = parser::parse(source)?;
+        println!("{:#?}", ast_tree);
+    } else {
+        let parser = syntax::ExprParser::new();
+        let ast_tree = parser.parse(&source);
         println!("{:#?}", ast_tree);
     }
     Ok(())

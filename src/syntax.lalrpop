@@ -1,0 +1,66 @@
+use std::str::FromStr;
+
+use crate::ast::Expr as AstExpr;
+use crate::ast;
+
+grammar;
+
+pub Expr: AstExpr = AddExpr;
+
+AddExpr = {
+    MulExpr,
+    <l:AddExpr> <op:AddOp> <r:MulExpr> => AstExpr::Binary(op, Box::new(l), Box::new(r)),
+}
+
+MulExpr = {
+    UnaryExpr,
+    <l:MulExpr> <op:MulOp> <r:UnaryExpr> => AstExpr::Binary(op, Box::new(l), Box::new(r)),
+}
+
+UnaryExpr = {
+    <op:UnaryOp> <e:UnaryExpr>          => AstExpr::Unary(op, Box::new(e)),
+    <name:Ident> "(" <p:ParamList> ")"  => AstExpr::Call(Box::new(name), p),
+    <name:Ident> "(" ")"                => AstExpr::Call(Box::new(name), vec![]),
+    <name:Ident> <p:IndexList>          => AstExpr::Call(Box::new(name), p),
+    Scalar,
+}
+
+ParamList: Vec<AstExpr> = {
+    Expr => vec![<>],
+    <mut p:ParamList> "," <e:Expr> => { p.push(e); p },
+}
+
+IndexList: Vec<AstExpr> = {
+    "[" <Expr> "]"                      => vec![<>],
+    <mut p:IndexList> "[" <e:Expr> "]"  => { p.push(e); p },
+}
+
+Scalar = {
+    NumLit,
+    Ident,
+    "(" <e:Expr> ")" => e,
+}
+
+//
+// Tokens
+//
+
+NumLit: AstExpr = r"[0-9]+" => AstExpr::Lit(i32::from_str(<>).unwrap());
+Ident: AstExpr = r"[a-zA-Z][a-zA-Z0-9]*" => AstExpr::Ident(<>.to_owned());
+
+UnaryOp: ast::UnOp = {
+    "+" => ast::UnOp::Pos,
+    "-" => ast::UnOp::Neg,
+    "!" => ast::UnOp::Not,
+}
+
+MulOp: ast::BinOp = {
+    "*" => ast::BinOp::Mul,
+    "/" => ast::BinOp::Div,
+    "%" => ast::BinOp::Rem,
+}
+
+AddOp: ast::BinOp = {
+    "+" => ast::BinOp::Add,
+    "-" => ast::BinOp::Sub,
+}
