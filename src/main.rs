@@ -15,7 +15,7 @@ fn main() -> anyhow::Result<()> {
     if let Some("lexer") = arg1.as_deref() {
         lexer::run(source);
     } else if let Some("ast") = arg1.as_deref() {
-        let parser = syntax::StmtParser::new();
+        let parser = syntax::ItemParser::new();
         let ast_tree = parser.parse(&source);
         println!("{:#?}", ast_tree);
     } else {

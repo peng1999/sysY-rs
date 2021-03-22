@@ -1,4 +1,9 @@
 #[derive(Debug)]
+pub enum Item {
+    FuncDef(String, String, Vec<()>, Vec<Stmt>),
+}
+
+#[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
     Decl(String, String, Box<Expr>),

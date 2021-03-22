@@ -4,7 +4,11 @@ use crate::ast;
 
 grammar;
 
-pub Stmt: ast::Stmt = {
+pub Item: ast::Item = {
+    <r:Ident> <n:Ident> "(" ")" "{" <b:Stmt*> "}" => ast::Item::FuncDef(r, n, vec![], b),
+}
+
+Stmt: ast::Stmt = {
     StmtOther,
     "if" "(" <c:Expr> ")" <t:Stmt> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(ast::Stmt::Empty)),
     "if" "(" <c:Expr> ")" <t:WithElse> "else" <f:Stmt> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(f)),
