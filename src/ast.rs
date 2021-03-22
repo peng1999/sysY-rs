@@ -1,9 +1,11 @@
 #[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
+    Decl(String, String, Box<Expr>),
     Assign(Box<Expr>, Box<Expr>),
     Expr(Expr),
     If(Box<Expr>, Box<Stmt>, Box<Stmt>),
+    Return(Option<Expr>),
     Break,
     Empty,
 }

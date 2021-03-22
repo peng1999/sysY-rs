@@ -16,10 +16,16 @@ WithElse = {
 }
 
 StmtOther: ast::Stmt = {
+    Decl,
     <Expr> ";" => ast::Stmt::Expr(<>),
     <l:Expr> "=" <r:Expr> ";" => ast::Stmt::Assign(Box::new(l), Box::new(r)),
     "{" <Stmt*> "}" => ast::Stmt::Block(<>),
     ";" => ast::Stmt::Empty,
+    "return" <v:Expr?> ";" => ast::Stmt::Return(v),
+}
+
+Decl: ast::Stmt = {
+    <t:Ident> <n:Ident> "=" <v:Expr> ";" => ast::Stmt::Decl(t, n, Box::new(v)),
 }
 
 Expr: ast::Expr = AddExpr;
@@ -35,10 +41,10 @@ MulExpr = {
 }
 
 UnaryExpr = {
-    <op:UnaryOp> <e:UnaryExpr>          => ast::Expr::Unary(op, Box::new(e)),
-    <name:Ident> "(" <p:ParamList> ")"  => ast::Expr::Call(Box::new(name), p),
-    <name:Ident> "(" ")"                => ast::Expr::Call(Box::new(name), vec![]),
-    <name:Ident> <p:IndexList>          => ast::Expr::Index(Box::new(name), p),
+    <op:UnaryOp> <e:UnaryExpr>              => ast::Expr::Unary(op, Box::new(e)),
+    <name:IdentExpr> "(" <p:ParamList> ")"  => ast::Expr::Call(Box::new(name), p),
+    <name:IdentExpr> "(" ")"                => ast::Expr::Call(Box::new(name), vec![]),
+    <name:IdentExpr> <p:IndexList>          => ast::Expr::Index(Box::new(name), p),
     Scalar,
 }
 
@@ -54,16 +60,18 @@ IndexList: Vec<ast::Expr> = {
 
 Scalar = {
     NumLit,
-    Ident,
+    IdentExpr,
     "(" <e:Expr> ")" => e,
 }
+
+IdentExpr: ast::Expr = Ident => ast::Expr::Ident(<>);
 
 //
 // Tokens
 //
 
 NumLit: ast::Expr = r"[0-9]+" => ast::Expr::Lit(i32::from_str(<>).unwrap());
-Ident: ast::Expr = r"[a-zA-Z][a-zA-Z0-9]*" => ast::Expr::Ident(<>.to_owned());
+Ident: String = r"[a-zA-Z][a-zA-Z0-9]*" => <>.to_owned();
 
 UnaryOp: ast::UnOp = {
     "+" => ast::UnOp::Pos,

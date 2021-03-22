@@ -13,7 +13,7 @@ pub fn run() {
     let builder = context.create_builder();
     builder.position_at_end(entry);
     let a1 = fn_value.get_nth_param(0).unwrap().into_int_value();
-    let v1 = builder.build_int_add(a1, i32_type.const_int(0, false), "v1");
+    let v1 = builder.build_int_add(a1, i32_type.const_int(0, false), "");
     builder.build_return(Some(&v1));
 
     module.print_to_stderr();
