@@ -3,7 +3,9 @@ pub enum Stmt {
     Block(Vec<Stmt>),
     Assign(Box<Expr>, Box<Expr>),
     Expr(Expr),
+    If(Box<Expr>, Box<Stmt>, Box<Stmt>),
     Break,
+    Empty,
 }
 
 #[derive(Debug)]
