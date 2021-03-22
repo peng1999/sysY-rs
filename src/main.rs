@@ -7,6 +7,7 @@ mod ast;
 mod lexer;
 mod parser;
 lalrpop_mod!(pub syntax);
+mod llvm;
 
 use std::io;
 
@@ -18,12 +19,13 @@ fn main() -> anyhow::Result<()> {
     } else if let Some("pest") = arg1.as_deref() {
         parser::run(source);
     } else if let Some("ast") = arg1.as_deref() {
-        let ast_tree = parser::parse(source)?;
-        println!("{:#?}", ast_tree);
-    } else {
+        // let ast_tree = parser::parse(source)?;
+        // println!("{:#?}", ast_tree);
         let parser = syntax::StmtParser::new();
         let ast_tree = parser.parse(&source);
         println!("{:#?}", ast_tree);
+    } else {
+        llvm::run();
     }
     Ok(())
 }
