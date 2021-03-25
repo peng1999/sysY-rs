@@ -1,11 +1,16 @@
 use std::str::FromStr;
 
 use crate::ast;
+use crate::context::Context;
 
-grammar;
+grammar(ctx: &mut Context);
 
 pub Item: ast::Item = {
-    <r:Ident> <n:Ident> "(" ")" "{" <b:Stmt*> "}" => ast::Item::FuncDef(r, n, vec![], b),
+    <r:Ident> <n:Ident> "(" ")" "{" <b:Stmt*> "}" => {
+        let r = ctx.interner.get_or_intern(r);
+        let n = ctx.interner.get_or_intern(n);
+        ast::Item::FuncDef(r, n, vec![], b)
+    }
 }
 
 Stmt: ast::Stmt = {
@@ -29,7 +34,11 @@ StmtOther: ast::Stmt = {
 }
 
 Decl: ast::Stmt = {
-    <t:Ident> <n:Ident> "=" <v:Expr> ";" => ast::Stmt::Decl(t, n, Box::new(v)),
+    <t:Ident> <n:Ident> "=" <v:Expr> ";" => {
+        let sym_t = ctx.interner.get_or_intern(t);
+        let sym_n = ctx.interner.get_or_intern(n);
+        ast::Stmt::Decl(sym_t, sym_n, Box::new(v))
+    },
 }
 
 Expr: ast::Expr = AddExpr;
@@ -68,14 +77,14 @@ Scalar = {
     "(" <e:Expr> ")" => e,
 }
 
-IdentExpr: ast::Expr = Ident => ast::Expr::Ident(<>);
+IdentExpr: ast::Expr = Ident => ast::Expr::Ident(ctx.interner.get_or_intern(<>));
 
 //
 // Tokens
 //
 
 NumLit: ast::Expr = r"[0-9]+" => ast::Expr::Lit(i32::from_str(<>).unwrap());
-Ident: String = r"[a-zA-Z][a-zA-Z0-9]*" => <>.to_owned();
+Ident = r"[a-zA-Z][a-zA-Z0-9]*";
 
 UnaryOp: ast::UnOp = {
     "+" => ast::UnOp::Pos,

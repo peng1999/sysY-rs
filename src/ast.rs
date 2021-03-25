@@ -1,12 +1,14 @@
+use crate::context::Symbol;
+
 #[derive(Debug)]
 pub enum Item {
-    FuncDef(String, String, Vec<()>, Vec<Stmt>),
+    FuncDef(Symbol, Symbol, Vec<()>, Vec<Stmt>),
 }
 
 #[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
-    Decl(String, String, Box<Expr>),
+    Decl(Symbol, Symbol, Box<Expr>),
     Assign(Box<Expr>, Box<Expr>),
     Expr(Expr),
     If(Box<Expr>, Box<Stmt>, Box<Stmt>),
@@ -21,7 +23,7 @@ pub enum Expr {
     Unary(UnOp, Box<Expr>),
     Call(Box<Expr>, Vec<Expr>),
     Index(Box<Expr>, Vec<Expr>),
-    Ident(String),
+    Ident(Symbol),
     Lit(i32),
 }
 
@@ -48,4 +50,3 @@ pub enum UnOp {
     Neg,
     Not,
 }
-
