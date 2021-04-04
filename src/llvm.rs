@@ -3,9 +3,7 @@ use std::path::Path;
 use inkwell::{
     context::Context,
     module::{Linkage, Module},
-    targets::{
-        CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
-    },
+    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
     OptimizationLevel,
 };
 

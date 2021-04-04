@@ -121,8 +121,7 @@ fn trans_expr(
         }
     }
 
-    let result = gen_tmp
-        .then(|| Reg::new(ctx.id.get_next_id(), true));
+    let result = gen_tmp.then(|| Reg::new(ctx.id.get_next_id(), true));
 
     match expr {
         Expr::Binary(op, lhs, rhs) => {
