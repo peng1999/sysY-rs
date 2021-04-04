@@ -13,7 +13,7 @@ pub struct Context {
 pub type Symbol = string_interner::DefaultSymbol;
 /// The unique identifier of a register
 #[derive(Debug, Copy, Clone)]
-pub struct Ident(usize);
+pub struct Ident(pub usize);
 
 #[derive(Debug)]
 struct SymTable {

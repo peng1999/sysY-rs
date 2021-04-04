@@ -32,7 +32,12 @@ fn main() -> anyhow::Result<()> {
                 ctx.sym_begin_scope();
                 quaruple::trans_stmts(stmts, &mut quar, &mut ctx);
                 ctx.sym_end_scope();
-                println!("{:#?}", quar);
+                let ir_form = quar
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                println!("{}", ir_form);
             }
         } else {
             println!("{:#?}", ast_tree);
