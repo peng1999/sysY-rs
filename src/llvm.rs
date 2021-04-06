@@ -1,45 +1,61 @@
 use std::path::Path;
 
 use inkwell::{
-    context::Context,
-    module::{Linkage, Module},
+    context::Context as LLVMContext,
+    module::Module,
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
+    values::FunctionValue,
     OptimizationLevel,
 };
 
-pub fn run() {
-    let context = Context::create();
-    let module = context.create_module("main");
-    let builder = context.create_builder();
+use crate::{context::Context, quaruple::Quaruple};
 
-    let i32_type = context.i32_type();
+pub fn trans_quaruples(
+    function: FunctionValue,
+    quaruples: Vec<Quaruple>,
+    ctx: &mut Context,
+    llctx: &LLVMContext,
+) {
+    let builder = llctx.create_builder();
 
-    // getchar()
-    let fn_getchar_type = i32_type.fn_type(&[], false);
-    let fn_getchar = module.add_function("getchar", fn_getchar_type, Some(Linkage::External));
+    let i32_type = llctx.i32_type();
+
+    let entry = llctx.append_basic_block(function, "entry");
+    builder.position_at_end(entry);
+
+    builder.build_return(Some(&i32_type.const_int(0, false)));
+}
+
+pub fn run(quaruples: Vec<Quaruple>, ctx: &mut Context) {
+    let llctx = LLVMContext::create();
+    let module = llctx.create_module("main");
+
+    let i32_type = llctx.i32_type();
+
+    // // getchar()
+    // let fn_getchar_type = i32_type.fn_type(&[], false);
+    // let fn_getchar = module.add_function("getchar", fn_getchar_type, Some(Linkage::External));
 
     // main()
     let fn_main_type = i32_type.fn_type(&[], false);
     let fn_main = module.add_function("main", fn_main_type, None);
+    trans_quaruples(fn_main, quaruples, ctx, &llctx);
 
-    let entry = context.append_basic_block(fn_main, "entry");
-
-    builder.position_at_end(entry);
-    let a1 = builder
-        .build_call(fn_getchar, &[], "")
-        .try_as_basic_value()
-        .left()
-        .unwrap()
-        .into_int_value();
-    let v1 = builder.build_int_add(a1, i32_type.const_int(0, false), "");
-    builder.build_return(Some(&v1));
+    // let a1 = builder
+    //     .build_call(fn_getchar, &[], "")
+    //     .try_as_basic_value()
+    //     .left()
+    //     .unwrap()
+    //     .into_int_value();
+    // let v1 = builder.build_int_add(a1, i32_type.const_int(0, false), "");
+    // builder.build_return(Some(&v1));
 
     module.print_to_stderr();
 
-    emit_to_file(&module);
+    emit_to_file(&module, &Path::new("/tmp/main.o"));
 }
 
-fn emit_to_file(module: &Module) {
+fn emit_to_file(module: &Module, path: &Path) {
     Target::initialize_x86(&InitializationConfig::default());
 
     let opt = OptimizationLevel::Default;
@@ -59,8 +75,7 @@ fn emit_to_file(module: &Module) {
         )
         .unwrap();
 
-    let path = Path::new("/tmp/main.o");
     target_machine
-        .write_to_file(module, FileType::Object, &path)
+        .write_to_file(module, FileType::Object, path)
         .unwrap();
 }

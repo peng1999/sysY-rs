@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use inkwell::context::Context as LLVMContext;
 use string_interner::StringInterner;
 
 #[derive(Debug)]
@@ -7,6 +8,7 @@ pub struct Context {
     local_sym: SymTable,
     pub interner: StringInterner,
     pub id: IdGen,
+    pub llvm_context: LLVMContext,
 }
 
 /// Interned string occurs in source code
@@ -31,6 +33,7 @@ impl Context {
             local_sym: SymTable { lookup: vec![] },
             interner: StringInterner::new(),
             id: IdGen { next_id: 0 },
+            llvm_context: LLVMContext::create(),
         }
     }
 
