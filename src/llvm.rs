@@ -30,7 +30,7 @@ impl<'a> Context<'a> {
 
 fn ident_to_pointer<'a>(
     ident: Ident,
-    builder: &mut Builder<'a>,
+    builder: &Builder<'a>,
     ctx: &mut Context<'a>,
     llctx: &'a LLVMContext,
 ) -> PointerValue<'a> {
@@ -42,7 +42,7 @@ fn ident_to_pointer<'a>(
 
 fn value_to_llvm<'a>(
     value: quaruple::Value,
-    builder: &mut Builder<'a>,
+    builder: &Builder<'a>,
     ctx: &mut Context<'a>,
     llctx: &'a LLVMContext,
 ) -> BasicValueEnum<'a> {
@@ -53,7 +53,8 @@ fn value_to_llvm<'a>(
             if r.is_const {
                 todo!()
             } else {
-                ident_to_pointer(r.sym, builder, ctx, llctx).into()
+                let ptr = ident_to_pointer(r.sym, builder, ctx, llctx);
+                builder.build_load(ptr, "").into()
             }
         }
     }
@@ -61,7 +62,7 @@ fn value_to_llvm<'a>(
 
 fn trans_one_quaruple<'a>(
     quaruple: Quaruple,
-    builder: &mut Builder<'a>,
+    builder: &Builder<'a>,
     ctx: &mut Context<'a>,
     llctx: &'a LLVMContext,
 ) {
@@ -71,7 +72,11 @@ fn trans_one_quaruple<'a>(
         OpArg::Unary { op, arg } => {
             let llvm_value = value_to_llvm(arg, builder, ctx, llctx);
             match op {
-                UnaryOp::Assign => todo!(),
+                UnaryOp::Assign => {
+                    let ident = quaruple.result.expect("Assign must have a result").sym;
+                    let ptr = ident_to_pointer(ident, builder, ctx, llctx);
+                    builder.build_store(ptr, llvm_value)
+                }
                 UnaryOp::Ret => builder.build_return(Some(&llvm_value)),
             }
         }
@@ -80,20 +85,20 @@ fn trans_one_quaruple<'a>(
     ()
 }
 
-fn trans_quaruples(
+fn trans_quaruples<'a>(
     function: FunctionValue,
     quaruples: Vec<Quaruple>,
-    ctx: &mut Context,
-    llctx: &LLVMContext,
+    ctx: &mut Context<'a>,
+    llctx: &'a LLVMContext,
 ) {
     let builder = llctx.create_builder();
-
-    let i32_type = llctx.i32_type();
 
     let entry = llctx.append_basic_block(function, "entry");
     builder.position_at_end(entry);
 
-    builder.build_return(Some(&i32_type.const_int(0, false)));
+    for quaruple in quaruples {
+        trans_one_quaruple(quaruple, &builder, ctx, llctx);
+    }
 }
 
 pub fn run(quaruples: Vec<Quaruple>) {
