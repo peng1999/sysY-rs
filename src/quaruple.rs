@@ -7,24 +7,24 @@ pub use trans::trans_stmts;
 
 #[derive(Debug)]
 pub struct Quaruple {
-    result: Option<Reg>,
-    op: OpArg,
+    pub result: Option<Reg>,
+    pub op: OpArg,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Reg {
-    sym: Ident,
-    is_const: bool,
+pub struct Reg {
+    pub sym: Ident,
+    pub is_const: bool,
 }
 
 #[derive(Debug)]
-enum Value {
+pub enum Value {
     Reg(Reg),
     Int(i32),
 }
 
 #[derive(Debug)]
-enum OpArg {
+pub enum OpArg {
     Unary {
         op: UnaryOp,
         arg: Value,
@@ -37,13 +37,13 @@ enum OpArg {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum UnaryOp {
+pub enum UnaryOp {
     Assign,
     Ret,
 }
 
 #[derive(Debug, Clone, Copy)]
-enum BinaryOp {
+pub enum BinaryOp {
     Add,
     Sub,
     Mul,

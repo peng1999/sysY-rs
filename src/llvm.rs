@@ -1,16 +1,86 @@
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 use inkwell::{
+    builder::Builder,
     context::Context as LLVMContext,
     module::Module,
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
-    values::FunctionValue,
+    values::{BasicValueEnum, FunctionValue, IntValue, PointerValue},
     OptimizationLevel,
 };
 
-use crate::{context::Context, quaruple::Quaruple};
+use crate::{
+    context::Ident,
+    quaruple::{self, Quaruple},
+};
 
-pub fn trans_quaruples(
+struct Context<'a> {
+    pub pvar: HashMap<Ident, PointerValue<'a>>,
+    pub ivar: HashMap<Ident, IntValue<'a>>,
+}
+
+impl<'a> Context<'a> {
+    fn new() -> Self {
+        Context {
+            pvar: HashMap::new(),
+            ivar: HashMap::new(),
+        }
+    }
+}
+
+fn ident_to_pointer<'a>(
+    ident: Ident,
+    builder: &mut Builder<'a>,
+    ctx: &mut Context<'a>,
+    llctx: &'a LLVMContext,
+) -> PointerValue<'a> {
+    let i32_type = llctx.i32_type();
+    *ctx.pvar
+        .entry(ident)
+        .or_insert_with(|| builder.build_alloca(i32_type, ""))
+}
+
+fn value_to_llvm<'a>(
+    value: quaruple::Value,
+    builder: &mut Builder<'a>,
+    ctx: &mut Context<'a>,
+    llctx: &'a LLVMContext,
+) -> BasicValueEnum<'a> {
+    let i32_type = llctx.i32_type();
+    match value {
+        quaruple::Value::Int(v) => i32_type.const_int(v as u64, false).into(),
+        quaruple::Value::Reg(r) => {
+            if r.is_const {
+                todo!()
+            } else {
+                ident_to_pointer(r.sym, builder, ctx, llctx).into()
+            }
+        }
+    }
+}
+
+fn trans_one_quaruple<'a>(
+    quaruple: Quaruple,
+    builder: &mut Builder<'a>,
+    ctx: &mut Context<'a>,
+    llctx: &'a LLVMContext,
+) {
+    use quaruple::{OpArg, UnaryOp};
+
+    match quaruple.op {
+        OpArg::Unary { op, arg } => {
+            let llvm_value = value_to_llvm(arg, builder, ctx, llctx);
+            match op {
+                UnaryOp::Assign => todo!(),
+                UnaryOp::Ret => builder.build_return(Some(&llvm_value)),
+            }
+        }
+        _ => todo!("Unrecognized opcode"),
+    };
+    ()
+}
+
+fn trans_quaruples(
     function: FunctionValue,
     quaruples: Vec<Quaruple>,
     ctx: &mut Context,
@@ -26,7 +96,8 @@ pub fn trans_quaruples(
     builder.build_return(Some(&i32_type.const_int(0, false)));
 }
 
-pub fn run(quaruples: Vec<Quaruple>, ctx: &mut Context) {
+pub fn run(quaruples: Vec<Quaruple>) {
+    let mut ctx = Context::new();
     let llctx = LLVMContext::create();
     let module = llctx.create_module("main");
 
@@ -39,7 +110,7 @@ pub fn run(quaruples: Vec<Quaruple>, ctx: &mut Context) {
     // main()
     let fn_main_type = i32_type.fn_type(&[], false);
     let fn_main = module.add_function("main", fn_main_type, None);
-    trans_quaruples(fn_main, quaruples, ctx, &llctx);
+    trans_quaruples(fn_main, quaruples, &mut ctx, &llctx);
 
     // let a1 = builder
     //     .build_call(fn_getchar, &[], "")

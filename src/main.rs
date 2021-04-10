@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
                 break;
             }
 
-            llvm::run(quar, &mut ctx);
+            llvm::run(quar);
         } else {
             println!("The program is not a funtion definition!");
         }
