@@ -46,16 +46,24 @@ fn value_to_llvm<'a>(
     ctx: &mut Context<'a>,
     llctx: &'a LLVMContext,
 ) -> BasicValueEnum<'a> {
+    use quaruple::{Reg, Value};
+
     let i32_type = llctx.i32_type();
     match value {
-        quaruple::Value::Int(v) => i32_type.const_int(v as u64, false).into(),
-        quaruple::Value::Reg(r) => {
-            if r.is_const {
-                todo!()
-            } else {
-                let ptr = ident_to_pointer(r.sym, builder, ctx, llctx);
-                builder.build_load(ptr, "").into()
-            }
+        Value::Int(v) => i32_type.const_int(v as u64, false).into(),
+        Value::Reg(Reg {
+            sym,
+            is_const: true,
+        }) => {
+            let value = ctx.ivar.get(&sym).unwrap();
+            (*value).into()
+        }
+        Value::Reg(Reg {
+            sym,
+            is_const: false,
+        }) => {
+            let ptr = ident_to_pointer(sym, builder, ctx, llctx);
+            builder.build_load(ptr, "").into()
         }
     }
 }
