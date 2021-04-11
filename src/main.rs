@@ -5,7 +5,6 @@
 extern crate lalrpop_util;
 
 mod ast;
-mod lexer;
 lalrpop_mod! {
     #[allow(clippy::all)]
     pub syntax
@@ -14,21 +13,27 @@ mod context;
 mod llvm;
 mod quaruple;
 
-use std::io;
+use std::{fs, path::PathBuf};
+
+use clap::{AppSettings, Clap};
+
+#[derive(Clap)]
+#[clap(setting = AppSettings::ColoredHelp)]
+struct Opts {
+    #[clap(long, possible_values = &["ast", "ir", "llvm"])]
+    emit: Option<String>,
+    #[clap(required = true)]
+    input_file: PathBuf,
+}
 
 fn main() -> anyhow::Result<()> {
-    let source = io::read_to_string(&mut io::stdin())?;
-    let arg1 = std::env::args().nth(1);
+    let opts = Opts::parse();
+    let source = fs::read_to_string(opts.input_file)?;
     loop {
-        if let Some("lexer") = arg1.as_deref() {
-            lexer::run(source);
-            break;
-        }
-
         let mut ctx = context::Context::new();
         let parser = syntax::ItemParser::new();
         let ast_tree = parser.parse(&mut ctx, &source);
-        if let Some("ast") = arg1.as_deref() {
+        if opts.emit.as_deref() == Some("ast") {
             println!("{:#?}", ast_tree);
             break;
         }
@@ -38,7 +43,7 @@ fn main() -> anyhow::Result<()> {
             quaruple::trans_stmts(stmts, &mut quar, &mut ctx);
             ctx.sym_end_scope();
 
-            if let Some("ir") = arg1.as_deref() {
+            if opts.emit.as_deref() == Some("ir") {
                 let ir_form = quar
                     .iter()
                     .map(ToString::to_string)
