@@ -33,7 +33,8 @@ impl<'a> Context<'a> {
     }
 }
 
-fn ident_to_pointer<'a>(ident: Ident, ctx: &mut Context<'a>) -> PointerValue<'a> {
+/// Get a `PointerValue` from a non-const `Ident` in ir.
+fn get_pointer<'a>(ident: Ident, ctx: &mut Context<'a>) -> PointerValue<'a> {
     let llctx = ctx.ctx;
     let i32_type = llctx.i32_type();
     let builder = &ctx.builder;
@@ -42,7 +43,7 @@ fn ident_to_pointer<'a>(ident: Ident, ctx: &mut Context<'a>) -> PointerValue<'a>
         .or_insert_with(|| builder.build_alloca(i32_type, ""))
 }
 
-fn value_to_llvm<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicValueEnum<'a> {
+fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicValueEnum<'a> {
     use quaruple::{Reg, Value};
 
     let llctx = ctx.ctx;
@@ -61,22 +62,22 @@ fn value_to_llvm<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicValu
             sym,
             is_const: false,
         }) => {
-            let ptr = ident_to_pointer(sym, ctx);
+            let ptr = get_pointer(sym, ctx);
             ctx.builder.build_load(ptr, "")
         }
     }
 }
 
-fn trans_one_quaruple(quaruple: Quaruple, ctx: &mut Context) {
+fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
     use quaruple::{OpArg, UnaryOp};
 
     match quaruple.op {
         OpArg::Unary { op, arg } => {
-            let llvm_value = value_to_llvm(arg, ctx);
+            let llvm_value = get_basic_value(arg, ctx);
             match op {
                 UnaryOp::Assign => {
                     let ident = quaruple.result.expect("Assign must have a result").sym;
-                    let ptr = ident_to_pointer(ident, ctx);
+                    let ptr = get_pointer(ident, ctx);
                     ctx.builder.build_store(ptr, llvm_value)
                 }
                 UnaryOp::Ret => ctx.builder.build_return(Some(&llvm_value)),
@@ -86,7 +87,7 @@ fn trans_one_quaruple(quaruple: Quaruple, ctx: &mut Context) {
     };
 }
 
-fn trans_quaruples<'a>(function: FunctionValue, quaruples: Vec<Quaruple>, ctx: &mut Context<'a>) {
+fn build_function<'a>(function: FunctionValue, quaruples: Vec<Quaruple>, ctx: &mut Context<'a>) {
     let llctx = ctx.ctx;
     let builder = &ctx.builder;
 
@@ -94,7 +95,7 @@ fn trans_quaruples<'a>(function: FunctionValue, quaruples: Vec<Quaruple>, ctx: &
     builder.position_at_end(entry);
 
     for quaruple in quaruples {
-        trans_one_quaruple(quaruple, ctx);
+        trans_quaruple(quaruple, ctx);
     }
 }
 
@@ -111,7 +112,7 @@ fn quaruple_to_module<'a>(quaruples: Vec<Quaruple>, ctx: &mut Context<'a>) -> Mo
     // main()
     let fn_main_type = i32_type.fn_type(&[], false);
     let fn_main = module.add_function("main", fn_main_type, None);
-    trans_quaruples(fn_main, quaruples, ctx);
+    build_function(fn_main, quaruples, ctx);
 
     // let a1 = builder
     //     .build_call(fn_getchar, &[], "")
@@ -125,7 +126,7 @@ fn quaruple_to_module<'a>(quaruples: Vec<Quaruple>, ctx: &mut Context<'a>) -> Mo
     module
 }
 
-fn emit_to_file(module: Module, path: &Path) {
+fn emit_obj_file(module: Module, path: &Path) {
     Target::initialize_x86(&InitializationConfig::default());
 
     let opt = OptimizationLevel::Default;
@@ -167,5 +168,5 @@ pub fn emit_obj(quaruples: Vec<Quaruple>, path: &Path) {
 
     let module = quaruple_to_module(quaruples, &mut ctx);
 
-    emit_to_file(module, path);
+    emit_obj_file(module, path);
 }
