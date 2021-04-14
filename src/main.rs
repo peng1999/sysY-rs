@@ -1,3 +1,4 @@
+#![feature(bool_to_option)]
 #![feature(io_read_to_string)]
 #![feature(map_try_insert)]
 
@@ -13,7 +14,7 @@ mod context;
 mod llvm;
 mod quaruple;
 
-use std::{fs, path::PathBuf};
+use std::{fs, io::Write, path::PathBuf};
 
 use clap::{AppSettings, Clap};
 
@@ -22,19 +23,36 @@ use clap::{AppSettings, Clap};
 struct Opts {
     #[clap(long, possible_values = &["ast", "ir", "llvm"])]
     emit: Option<String>,
+
+    /// Output file
+    #[clap(short = 'o')]
+    output_file: Option<PathBuf>,
+
+    /// Source file
     #[clap(required = true)]
     input_file: PathBuf,
 }
 
 fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
-    let source = fs::read_to_string(opts.input_file)?;
+    let source = fs::read_to_string(&opts.input_file)?;
+    // is default mode
+    let mut output: Box<dyn Write> = opts
+        .output_file
+        .as_ref()
+        .map(fs::File::create)
+        .transpose()?
+        .map_or_else(
+            || Box::new(std::io::stdout()) as Box<dyn Write>,
+            |f| Box::new(f) as Box<dyn Write>,
+        );
+
     loop {
         let mut ctx = context::Context::new();
         let parser = syntax::ItemParser::new();
         let ast_tree = parser.parse(&mut ctx, &source);
         if opts.emit.as_deref() == Some("ast") {
-            println!("{:#?}", ast_tree);
+            writeln!(output, "{:#?}", ast_tree)?;
             break;
         }
         if let Ok(ast::Item::FuncDef(_, _, _, stmts)) = ast_tree {
@@ -49,13 +67,25 @@ fn main() -> anyhow::Result<()> {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join("\n");
-                println!("{}", ir_form);
+                writeln!(output, "{}", ir_form)?;
                 break;
             }
 
-            llvm::run(quar);
+            if opts.emit.as_deref() == Some("llvm") {
+                llvm::emit_llvm_ir(quar, &mut output)?;
+                break;
+            }
+
+            let mut file = opts.input_file;
+            let out_path = opts.output_file.unwrap_or_else(|| {
+                file.set_extension("o");
+                file
+            });
+
+            llvm::emit_obj(quar, &out_path);
+
         } else {
-            println!("The program is not a funtion definition!");
+            eprintln!("The program is not a funtion definition!");
         }
 
         break;

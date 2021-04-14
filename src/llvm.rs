@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, io::Write, path::Path};
 
 use inkwell::{
     builder::Builder,
@@ -98,9 +98,8 @@ fn trans_quaruples<'a>(function: FunctionValue, quaruples: Vec<Quaruple>, ctx: &
     }
 }
 
-pub fn run(quaruples: Vec<Quaruple>) {
-    let llctx = LLVMContext::create();
-    let mut ctx = Context::new(&llctx);
+fn quaruple_to_module<'a>(quaruples: Vec<Quaruple>, ctx: &mut Context<'a>) -> Module<'a> {
+    let llctx = ctx.ctx;
     let module = llctx.create_module("main");
 
     let i32_type = llctx.i32_type();
@@ -112,7 +111,7 @@ pub fn run(quaruples: Vec<Quaruple>) {
     // main()
     let fn_main_type = i32_type.fn_type(&[], false);
     let fn_main = module.add_function("main", fn_main_type, None);
-    trans_quaruples(fn_main, quaruples, &mut ctx);
+    trans_quaruples(fn_main, quaruples, ctx);
 
     // let a1 = builder
     //     .build_call(fn_getchar, &[], "")
@@ -123,12 +122,10 @@ pub fn run(quaruples: Vec<Quaruple>) {
     // let v1 = builder.build_int_add(a1, i32_type.const_int(0, false), "");
     // builder.build_return(Some(&v1));
 
-    module.print_to_stderr();
-
-    emit_to_file(&module, &Path::new("/tmp/main.o"));
+    module
 }
 
-fn emit_to_file(module: &Module, path: &Path) {
+fn emit_to_file(module: Module, path: &Path) {
     Target::initialize_x86(&InitializationConfig::default());
 
     let opt = OptimizationLevel::Default;
@@ -149,6 +146,26 @@ fn emit_to_file(module: &Module, path: &Path) {
         .unwrap();
 
     target_machine
-        .write_to_file(module, FileType::Object, path)
+        .write_to_file(&module, FileType::Object, path)
         .unwrap();
+}
+
+pub fn emit_llvm_ir(quaruples: Vec<Quaruple>, file: &mut dyn Write) -> anyhow::Result<()> {
+    let llctx = LLVMContext::create();
+    let mut ctx = Context::new(&llctx);
+
+    let module = quaruple_to_module(quaruples, &mut ctx);
+
+    let ir_form = module.print_to_string().to_string();
+    writeln!(file, "{}", ir_form)?;
+    Ok(())
+}
+
+pub fn emit_obj(quaruples: Vec<Quaruple>, path: &Path) {
+    let llctx = LLVMContext::create();
+    let mut ctx = Context::new(&llctx);
+
+    let module = quaruple_to_module(quaruples, &mut ctx);
+
+    emit_to_file(module, path);
 }
