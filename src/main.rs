@@ -1,6 +1,7 @@
 #![feature(bool_to_option)]
 #![feature(io_read_to_string)]
 #![feature(map_try_insert)]
+#![allow(clippy::new_without_default)]
 
 #[macro_use]
 extern crate lalrpop_util;
@@ -47,6 +48,7 @@ fn main() -> anyhow::Result<()> {
             |f| Box::new(f) as Box<dyn Write>,
         );
 
+    #[allow(clippy::never_loop)] // Just want to use the `break`
     loop {
         let mut ctx = context::Context::new();
         let parser = syntax::ItemParser::new();

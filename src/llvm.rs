@@ -62,12 +62,12 @@ fn value_to_llvm<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicValu
             is_const: false,
         }) => {
             let ptr = ident_to_pointer(sym, ctx);
-            ctx.builder.build_load(ptr, "").into()
+            ctx.builder.build_load(ptr, "")
         }
     }
 }
 
-fn trans_one_quaruple<'a>(quaruple: Quaruple, ctx: &mut Context<'a>) {
+fn trans_one_quaruple(quaruple: Quaruple, ctx: &mut Context) {
     use quaruple::{OpArg, UnaryOp};
 
     match quaruple.op {

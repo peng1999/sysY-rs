@@ -59,7 +59,7 @@ impl Context {
             .iter()
             .rev()
             .find_map(|map| map.get(&sym))
-            .map(|idx| *idx)
+            .copied()
     }
 
     pub fn sym_lookup_or_panic(&self, sym: Symbol) -> Ident {
