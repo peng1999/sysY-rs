@@ -19,7 +19,7 @@ struct Context<'a> {
     pub builder: Builder<'a>,
 
     pub pvar: HashMap<Ident, PointerValue<'a>>,
-    pub ivar: HashMap<Ident, IntValue<'a>>,
+    pub ivar: HashMap<Ident, BasicValueEnum<'a>>,
 }
 
 impl<'a> Context<'a> {
@@ -43,6 +43,15 @@ fn get_pointer<'a>(ident: Ident, ctx: &mut Context<'a>) -> PointerValue<'a> {
         .or_insert_with(|| builder.build_alloca(i32_type, ""))
 }
 
+fn store_value<'a>(value: BasicValueEnum<'a>, reg: quaruple::Reg, ctx: &mut Context<'a>) {
+    if reg.is_const {
+        ctx.ivar.insert(reg.sym, value);
+    } else {
+        let p = get_pointer(reg.sym, ctx);
+        ctx.builder.build_store(p, value);
+    }
+}
+
 fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicValueEnum<'a> {
     use quaruple::{Reg, Value};
 
@@ -56,7 +65,7 @@ fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicVa
             is_const: true,
         }) => {
             let value = ctx.ivar.get(&sym).unwrap();
-            (*value).into()
+            *value
         }
         Value::Reg(Reg {
             sym,
@@ -69,21 +78,50 @@ fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicVa
 }
 
 fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
-    use quaruple::{OpArg, UnaryOp};
+    use quaruple::{BinaryOp, OpArg, UnaryOp};
 
     match quaruple.op {
         OpArg::Unary { op, arg } => {
-            let llvm_value = get_basic_value(arg, ctx);
+            let arg_value = get_basic_value(arg, ctx);
             match op {
                 UnaryOp::Assign => {
                     let ident = quaruple.result.expect("Assign must have a result").sym;
                     let ptr = get_pointer(ident, ctx);
-                    ctx.builder.build_store(ptr, llvm_value)
+                    ctx.builder.build_store(ptr, arg_value);
                 }
-                UnaryOp::Ret => ctx.builder.build_return(Some(&llvm_value)),
+                UnaryOp::Ret => {
+                    ctx.builder.build_return(Some(&arg_value));
+                }
             }
         }
-        _ => todo!("Unrecognized opcode"),
+        OpArg::Binary { op, arg1, arg2 } => {
+            let arg1_value = get_basic_value(arg1, ctx);
+            let arg2_value = get_basic_value(arg2, ctx);
+            let v = match op {
+                BinaryOp::Add => ctx.builder.build_int_add(
+                    arg1_value.into_int_value(),
+                    arg2_value.into_int_value(),
+                    "",
+                ),
+                BinaryOp::Sub => ctx.builder.build_int_sub(
+                    arg1_value.into_int_value(),
+                    arg2_value.into_int_value(),
+                    "",
+                ),
+                BinaryOp::Mul => ctx.builder.build_int_mul(
+                    arg1_value.into_int_value(),
+                    arg2_value.into_int_value(),
+                    "",
+                ),
+                BinaryOp::Div => ctx.builder.build_int_signed_div(
+                    arg1_value.into_int_value(),
+                    arg2_value.into_int_value(),
+                    "",
+                ),
+                _ => todo!(),
+            };
+            quaruple.result.map(|reg| store_value(v.into(), reg, ctx));
+        }
     };
 }
 
