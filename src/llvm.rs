@@ -5,7 +5,7 @@ use inkwell::{
     context::Context as LLVMContext,
     module::Module,
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
-    values::{BasicValueEnum, FunctionValue, IntValue, PointerValue},
+    values::{BasicValueEnum, FunctionValue, PointerValue},
     OptimizationLevel,
 };
 
@@ -118,7 +118,6 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                     arg2_value.into_int_value(),
                     "",
                 ),
-                _ => todo!(),
             };
             quaruple.result.map(|reg| store_value(v.into(), reg, ctx));
         }
