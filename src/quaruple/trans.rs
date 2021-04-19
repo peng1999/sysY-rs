@@ -1,6 +1,6 @@
 use either::{Either, Left, Right};
 
-use super::{BinaryOp, Quaruple, Reg, UnaryOp, Value};
+use super::{BinaryOp, Quaruple, UnaryOp, Value, Ident};
 use crate::{
     ast::{self, Expr},
     context::Context,
@@ -10,16 +10,16 @@ fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Value, Expr> {
     match expr {
         Expr::Ident(name) => {
             let ident = ctx.sym_lookup_or_panic(name);
-            Left(ident.to_value(false))
+            Left(ident.into())
         }
-        Expr::Lit(v) => Left(Value::Int(v)),
+        Expr::IntLit(v) => Left(Value::Int(v)),
         _ => Right(expr),
     }
 }
 
 fn trans_compond_expr(
     expr: Expr,
-    result: Option<Reg>,
+    result: Option<Ident>,
     quaruples: &mut Vec<Quaruple>,
     ctx: &mut Context,
 ) {
@@ -50,7 +50,7 @@ fn trans_expr_val(expr: Expr, quaruples: &mut Vec<Quaruple>, ctx: &mut Context) 
     match atom_to_value(expr, ctx) {
         Left(val) => val,
         Right(expr) => {
-            let result = Reg::new(ctx.id.get_next_id(), true);
+            let result = ctx.id.get_next_id();
             trans_compond_expr(expr, Some(result), quaruples, ctx);
             Value::Reg(result)
         }
@@ -68,13 +68,13 @@ pub fn trans_stmts(stmts: Vec<ast::Stmt>, quaruples: &mut Vec<Quaruple>, ctx: &m
                     let sym = ctx.interner.resolve(name).unwrap();
                     panic!("name redefinition: {}", sym);
                 });
-                quaruples.last_mut().unwrap().result = Some(Reg::new(ident, false));
+                quaruples.last_mut().unwrap().result = Some(ident);
             }
             Assign(name, expr) => match *name {
                 ast::Expr::Ident(name) => {
                     trans_expr_place(*expr, quaruples, ctx);
                     let ident = ctx.sym_lookup_or_panic(name);
-                    quaruples.last_mut().unwrap().result = Some(Reg::new(ident, false));
+                    quaruples.last_mut().unwrap().result = Some(ident);
                 }
                 _ => todo!(),
             },

@@ -74,7 +74,7 @@ fn main() -> anyhow::Result<()> {
             }
 
             if opts.emit.as_deref() == Some("llvm") {
-                llvm::emit_llvm_ir(quar, &mut output)?;
+                llvm::emit_llvm_ir(quar, &mut output, ctx)?;
                 break;
             }
 
@@ -84,7 +84,7 @@ fn main() -> anyhow::Result<()> {
                 file
             });
 
-            llvm::emit_obj(quar, &out_path);
+            llvm::emit_obj(quar, &out_path, ctx);
 
         } else {
             eprintln!("The program is not a function definition!");

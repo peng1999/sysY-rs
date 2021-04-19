@@ -72,6 +72,7 @@ IndexList: Vec<ast::Expr> = {
 }
 
 Scalar = {
+    BoolLit,
     NumLit,
     IdentExpr,
     "(" <e:Expr> ")" => e,
@@ -83,7 +84,11 @@ IdentExpr: ast::Expr = Ident => ast::Expr::Ident(ctx.interner.get_or_intern(<>))
 // Tokens
 //
 
-NumLit: ast::Expr = r"[0-9]+" => ast::Expr::Lit(i32::from_str(<>).unwrap());
+BoolLit: ast::Expr = {
+    "true" => ast::Expr::BoolLit(true),
+    "false" => ast::Expr::BoolLit(false),
+}
+NumLit: ast::Expr = r"[0-9]+" => ast::Expr::IntLit(i32::from_str(<>).unwrap());
 Ident = r"[a-zA-Z][a-zA-Z0-9]*";
 
 UnaryOp: ast::UnOp = {

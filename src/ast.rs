@@ -24,7 +24,8 @@ pub enum Expr {
     Call(Box<Expr>, Vec<Expr>),
     Index(Box<Expr>, Vec<Expr>),
     Ident(Symbol),
-    Lit(i32),
+    IntLit(i32),
+    BoolLit(bool),
 }
 
 #[derive(Debug)]

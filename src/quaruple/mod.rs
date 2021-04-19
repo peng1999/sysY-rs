@@ -7,19 +7,13 @@ pub use trans::trans_stmts;
 
 #[derive(Debug)]
 pub struct Quaruple {
-    pub result: Option<Reg>,
+    pub result: Option<Ident>,
     pub op: OpArg,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Reg {
-    pub sym: Ident,
-    pub is_const: bool,
 }
 
 #[derive(Debug)]
 pub enum Value {
-    Reg(Reg),
+    Reg(Ident),
     Int(i32),
 }
 
@@ -50,18 +44,9 @@ pub enum BinaryOp {
     Div,
 }
 
-impl Ident {
-    fn to_value(&self, is_const: bool) -> Value {
-        Value::Reg(Reg {
-            sym: *self,
-            is_const,
-        })
-    }
-}
-
-impl Reg {
-    fn new(sym: Ident, is_const: bool) -> Reg {
-        Reg { sym, is_const }
+impl From<Ident> for Value {
+    fn from(ident: Ident) -> Value {
+        Value::Reg(ident)
     }
 }
 

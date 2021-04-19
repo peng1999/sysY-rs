@@ -10,7 +10,7 @@ use inkwell::{
 };
 
 use crate::{
-    context::Ident,
+    context::{Ident, IdentTable, Context as QContext},
     quaruple::{self, Quaruple},
 };
 
@@ -20,15 +20,18 @@ struct Context<'a> {
 
     pub pvar: HashMap<Ident, PointerValue<'a>>,
     pub ivar: HashMap<Ident, BasicValueEnum<'a>>,
+
+    ident_table: IdentTable,
 }
 
 impl<'a> Context<'a> {
-    fn new(ctx: &'a LLVMContext) -> Self {
+    fn new(llctx: &'a LLVMContext, qctx: QContext) -> Self {
         Context {
-            ctx,
-            builder: ctx.create_builder(),
+            ctx: llctx,
+            builder: llctx.create_builder(),
             pvar: HashMap::new(),
             ivar: HashMap::new(),
+            ident_table: qctx.ident_table,
         }
     }
 }
@@ -43,34 +46,28 @@ fn get_pointer<'a>(ident: Ident, ctx: &mut Context<'a>) -> PointerValue<'a> {
         .or_insert_with(|| builder.build_alloca(i32_type, ""))
 }
 
-fn store_value<'a>(value: BasicValueEnum<'a>, reg: quaruple::Reg, ctx: &mut Context<'a>) {
-    if reg.is_const {
-        ctx.ivar.insert(reg.sym, value);
+fn store_value<'a>(value: BasicValueEnum<'a>, reg: Ident, ctx: &mut Context<'a>) {
+    if ctx.ident_table.is_const(reg) {
+        ctx.ivar.insert(reg, value);
     } else {
-        let p = get_pointer(reg.sym, ctx);
+        let p = get_pointer(reg, ctx);
         ctx.builder.build_store(p, value);
     }
 }
 
 fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicValueEnum<'a> {
-    use quaruple::{Reg, Value};
+    use quaruple::Value;
 
     let llctx = ctx.ctx;
     let i32_type = llctx.i32_type();
 
     match value {
         Value::Int(v) => i32_type.const_int(v as u64, false).into(),
-        Value::Reg(Reg {
-            sym,
-            is_const: true,
-        }) => {
+        Value::Reg(sym) if ctx.ident_table.is_const(sym) => {
             let value = ctx.ivar.get(&sym).unwrap();
             *value
         }
-        Value::Reg(Reg {
-            sym,
-            is_const: false,
-        }) => {
+        Value::Reg(sym) => { // is_const -> false
             let ptr = get_pointer(sym, ctx);
             ctx.builder.build_load(ptr, "")
         }
@@ -85,7 +82,7 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
             let arg_value = get_basic_value(arg, ctx);
             match op {
                 UnaryOp::Assign => {
-                    let ident = quaruple.result.expect("Assign must have a result").sym;
+                    let ident = quaruple.result.expect("Assign must have a result");
                     let ptr = get_pointer(ident, ctx);
                     ctx.builder.build_store(ptr, arg_value);
                 }
@@ -188,9 +185,9 @@ fn emit_obj_file(module: Module, path: &Path) {
         .unwrap();
 }
 
-pub fn emit_llvm_ir(quaruples: Vec<Quaruple>, file: &mut dyn Write) -> anyhow::Result<()> {
+pub fn emit_llvm_ir(quaruples: Vec<Quaruple>, file: &mut dyn Write, qctx: QContext) -> anyhow::Result<()> {
     let llctx = LLVMContext::create();
-    let mut ctx = Context::new(&llctx);
+    let mut ctx = Context::new(&llctx, qctx);
 
     let module = quaruple_to_module(quaruples, &mut ctx);
 
@@ -199,9 +196,9 @@ pub fn emit_llvm_ir(quaruples: Vec<Quaruple>, file: &mut dyn Write) -> anyhow::R
     Ok(())
 }
 
-pub fn emit_obj(quaruples: Vec<Quaruple>, path: &Path) {
+pub fn emit_obj(quaruples: Vec<Quaruple>, path: &Path, qctx: QContext) {
     let llctx = LLVMContext::create();
-    let mut ctx = Context::new(&llctx);
+    let mut ctx = Context::new(&llctx, qctx);
 
     let module = quaruple_to_module(quaruples, &mut ctx);
 

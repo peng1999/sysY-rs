@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use string_interner::StringInterner;
 
@@ -7,6 +7,7 @@ pub struct Context {
     local_sym: SymTable,
     pub interner: StringInterner,
     pub id: IdGen,
+    pub ident_table: IdentTable,
 }
 
 /// Interned string occurs in source code
@@ -21,6 +22,11 @@ struct SymTable {
 }
 
 #[derive(Debug)]
+pub struct IdentTable {
+    non_const_set: HashSet<Ident>,
+}
+
+#[derive(Debug)]
 pub struct IdGen {
     next_id: usize,
 }
@@ -31,6 +37,9 @@ impl Context {
             local_sym: SymTable { lookup: vec![] },
             interner: StringInterner::new(),
             id: IdGen { next_id: 0 },
+            ident_table: IdentTable {
+                non_const_set: HashSet::new(),
+            },
         }
     }
 
@@ -50,7 +59,11 @@ impl Context {
             .expect("lookup table should have at least one entry");
 
         let id = self.id.get_next_id();
-        lookup.try_insert(sym, id).map_err(|_| ()).map(|id| *id)
+        let ident_table = &mut self.ident_table;
+        lookup.try_insert(sym, id).map_err(|_| ()).map(|id| {
+            ident_table.non_const_set.insert(*id);
+            *id
+        })
     }
 
     pub fn sym_lookup(&self, sym: Symbol) -> Option<Ident> {
@@ -75,5 +88,11 @@ impl IdGen {
         let id = self.next_id;
         self.next_id += 1;
         Ident(id)
+    }
+}
+
+impl IdentTable {
+    pub fn is_const(&self, ident: Ident) -> bool {
+        !self.non_const_set.contains(&ident)
     }
 }
