@@ -36,4 +36,4 @@ jobs:
         rustup toolchain add nightly
         rustup run nightly cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: rustup run nightly cargo test --verbose
