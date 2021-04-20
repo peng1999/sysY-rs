@@ -14,6 +14,7 @@ fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Value, Expr> {
             Left(ident.into())
         }
         Expr::IntLit(v) => Left(Value::Int(v)),
+        Expr::BoolLit(v) => Left(Value::Bool(v)),
         _ => Right(expr),
     }
 }

@@ -60,9 +60,11 @@ fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicVa
 
     let llctx = ctx.ctx;
     let i32_type = llctx.i32_type();
+    let i1_type = llctx.bool_type();
 
     match value {
         Value::Int(v) => i32_type.const_int(v as u64, false).into(),
+        Value::Bool(v) => i1_type.const_int(v as u64, false).into(),
         Value::Reg(sym) if ctx.ident_table.is_const(sym) => {
             let value = ctx.ivar.get(&sym).unwrap();
             *value
@@ -115,6 +117,7 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                     arg2_value.into_int_value(),
                     "",
                 ),
+                _ => todo!(),
             };
             quaruple.result.map(|reg| store_value(v.into(), reg, ctx));
         }

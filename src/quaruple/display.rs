@@ -27,6 +27,7 @@ impl Display for Value {
         match self {
             Value::Reg(r) => write!(fmt, "%{}", r.0)?,
             Value::Int(i) => write!(fmt, "{}", i)?,
+            Value::Bool(b) => write!(fmt, "{}", b)?,
         }
         Ok(())
     }

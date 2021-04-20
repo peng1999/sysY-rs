@@ -15,6 +15,7 @@ pub struct Quaruple {
 pub enum Value {
     Reg(Ident),
     Int(i32),
+    Bool(bool),
 }
 
 #[derive(Debug)]
@@ -42,6 +43,12 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
 }
 
 impl From<Ident> for Value {
@@ -63,7 +70,13 @@ impl BinaryOp {
             ast::BinOp::Sub => BinaryOp::Sub,
             ast::BinOp::Mul => BinaryOp::Mul,
             ast::BinOp::Div => BinaryOp::Div,
-            _ => unimplemented!(),
+            ast::BinOp::Eq => BinaryOp::Eq,
+            ast::BinOp::Ne => BinaryOp::Ne,
+            ast::BinOp::Lt => BinaryOp::Lt,
+            ast::BinOp::Le => BinaryOp::Le,
+            ast::BinOp::Gt => BinaryOp::Gt,
+            ast::BinOp::Ge => BinaryOp::Ge,
+            _ => todo!(),
         }
     }
     fn with_arg(self, arg1: Value, arg2: Value) -> OpArg {

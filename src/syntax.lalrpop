@@ -41,7 +41,12 @@ Decl: ast::Stmt = {
     },
 }
 
-Expr: ast::Expr = AddExpr;
+Expr: ast::Expr = CmpExpr;
+
+CmpExpr = {
+    AddExpr,
+    <l:CmpExpr> <op:CmpOp> <r:AddExpr> => ast::Expr::Binary(op, Box::new(l), Box::new(r)),
+}
 
 AddExpr = {
     MulExpr,
@@ -106,4 +111,13 @@ MulOp: ast::BinOp = {
 AddOp: ast::BinOp = {
     "+" => ast::BinOp::Add,
     "-" => ast::BinOp::Sub,
+}
+
+CmpOp: ast::BinOp = {
+   "==" => ast::BinOp::Eq,
+   "!=" => ast::BinOp::Ne,
+   "<"  => ast::BinOp::Lt,
+   "<=" => ast::BinOp::Le,
+   ">"  => ast::BinOp::Gt,
+   ">=" => ast::BinOp::Ge,
 }
