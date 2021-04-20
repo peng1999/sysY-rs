@@ -6,6 +6,7 @@ use crate::{
     context::Context,
 };
 
+/// Return a `Left(Value)`, or `Right(Expr)` if `expr` is not a atom.
 fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Value, Expr> {
     match expr {
         Expr::Ident(name) => {
@@ -36,6 +37,7 @@ fn trans_compond_expr(
     }
 }
 
+/// Translate a expr when result is unknown or unneeded.
 fn trans_expr_place(expr: Expr, quaruples: &mut Vec<Quaruple>, ctx: &mut Context) {
     match atom_to_value(expr, ctx) {
         Left(val) => quaruples.push(Quaruple {
