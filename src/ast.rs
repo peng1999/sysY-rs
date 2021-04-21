@@ -1,14 +1,14 @@
-use crate::context::Symbol;
+use crate::context::IString;
 
 #[derive(Debug)]
 pub enum Item {
-    FuncDef(Symbol, Symbol, Vec<()>, Vec<Stmt>),
+    FuncDef(IString, IString, Vec<()>, Vec<Stmt>),
 }
 
 #[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
-    Decl(Symbol, Symbol, Box<Expr>),
+    Decl(IString, IString, Box<Expr>),
     Assign(Box<Expr>, Box<Expr>),
     Expr(Expr),
     If(Box<Expr>, Box<Stmt>, Box<Stmt>),
@@ -23,7 +23,7 @@ pub enum Expr {
     Unary(UnOp, Box<Expr>),
     Call(Box<Expr>, Vec<Expr>),
     Index(Box<Expr>, Vec<Expr>),
-    Ident(Symbol),
+    Ident(IString),
     IntLit(i32),
     BoolLit(bool),
 }

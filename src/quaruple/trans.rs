@@ -1,6 +1,6 @@
 use either::{Either, Left, Right};
 
-use super::{BinaryOp, Ident, Quaruple, UnaryOp, Value};
+use super::{BinaryOp, Quaruple, Symbol, UnaryOp, Value};
 use crate::{
     ast::{self, Expr},
     context::Context,
@@ -21,7 +21,7 @@ fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Value, Expr> {
 
 fn trans_compond_expr(
     expr: Expr,
-    result: Option<Ident>,
+    result: Option<Symbol>,
     quaruples: &mut Vec<Quaruple>,
     ctx: &mut Context,
 ) {

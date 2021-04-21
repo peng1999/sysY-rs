@@ -4,26 +4,26 @@ use string_interner::StringInterner;
 
 #[derive(Debug)]
 pub struct Context {
-    local_sym: SymTable,
+    local_sym: LookupTable,
     pub interner: StringInterner,
     pub id: IdGen,
-    pub ident_table: IdentTable,
+    pub sym_table: SymTable,
 }
 
 /// Interned string occurs in source code
-pub type Symbol = string_interner::DefaultSymbol;
+pub type IString = string_interner::DefaultSymbol;
 /// The unique identifier of a register
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct Ident(pub usize);
+pub struct Symbol(pub usize);
 
 #[derive(Debug)]
-struct SymTable {
-    lookup: Vec<HashMap<Symbol, Ident>>,
+struct LookupTable {
+    lookup: Vec<HashMap<IString, Symbol>>,
 }
 
 #[derive(Debug)]
-pub struct IdentTable {
-    non_const_set: HashSet<Ident>,
+pub struct SymTable {
+    non_const_set: HashSet<Symbol>,
 }
 
 #[derive(Debug)]
@@ -34,10 +34,10 @@ pub struct IdGen {
 impl Context {
     pub fn new() -> Context {
         Context {
-            local_sym: SymTable { lookup: vec![] },
+            local_sym: LookupTable { lookup: vec![] },
             interner: StringInterner::new(),
             id: IdGen { next_id: 0 },
-            ident_table: IdentTable {
+            sym_table: SymTable {
                 non_const_set: HashSet::new(),
             },
         }
@@ -51,7 +51,7 @@ impl Context {
         self.local_sym.lookup.pop();
     }
 
-    pub fn sym_insert(&mut self, sym: Symbol) -> Result<Ident, ()> {
+    pub fn sym_insert(&mut self, sym: IString) -> Result<Symbol, ()> {
         let lookup = self
             .local_sym
             .lookup
@@ -59,14 +59,14 @@ impl Context {
             .expect("lookup table should have at least one entry");
 
         let id = self.id.get_next_id();
-        let ident_table = &mut self.ident_table;
+        let ident_table = &mut self.sym_table;
         lookup.try_insert(sym, id).map_err(|_| ()).map(|id| {
             ident_table.non_const_set.insert(*id);
             *id
         })
     }
 
-    pub fn sym_lookup(&self, sym: Symbol) -> Option<Ident> {
+    pub fn sym_lookup(&self, sym: IString) -> Option<Symbol> {
         self.local_sym
             .lookup
             .iter()
@@ -75,7 +75,7 @@ impl Context {
             .copied()
     }
 
-    pub fn sym_lookup_or_panic(&self, sym: Symbol) -> Ident {
+    pub fn sym_lookup_or_panic(&self, sym: IString) -> Symbol {
         self.sym_lookup(sym).unwrap_or_else(|| {
             let name = self.interner.resolve(sym).unwrap();
             panic!("undefined name: {}", name);
@@ -84,15 +84,15 @@ impl Context {
 }
 
 impl IdGen {
-    pub fn get_next_id(&mut self) -> Ident {
+    pub fn get_next_id(&mut self) -> Symbol {
         let id = self.next_id;
         self.next_id += 1;
-        Ident(id)
+        Symbol(id)
     }
 }
 
-impl IdentTable {
-    pub fn is_const(&self, ident: Ident) -> bool {
+impl SymTable {
+    pub fn is_const(&self, ident: Symbol) -> bool {
         !self.non_const_set.contains(&ident)
     }
 }

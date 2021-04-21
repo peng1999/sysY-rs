@@ -1,19 +1,19 @@
 mod display;
 mod trans;
 
-use crate::{ast, context::Ident};
+use crate::{ast, context::Symbol};
 
 pub use trans::trans_stmts;
 
 #[derive(Debug)]
 pub struct Quaruple {
-    pub result: Option<Ident>,
+    pub result: Option<Symbol>,
     pub op: OpArg,
 }
 
 #[derive(Debug)]
 pub enum Value {
-    Reg(Ident),
+    Reg(Symbol),
     Int(i32),
     Bool(bool),
 }
@@ -51,8 +51,8 @@ pub enum BinaryOp {
     Ge,
 }
 
-impl From<Ident> for Value {
-    fn from(ident: Ident) -> Value {
+impl From<Symbol> for Value {
+    fn from(ident: Symbol) -> Value {
         Value::Reg(ident)
     }
 }

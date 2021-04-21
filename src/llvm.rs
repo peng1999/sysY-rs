@@ -10,7 +10,7 @@ use inkwell::{
 };
 
 use crate::{
-    context::{Context as QContext, Ident, IdentTable},
+    context::{Context as QContext, SymTable, Symbol},
     quaruple::{self, Quaruple},
 };
 
@@ -18,10 +18,10 @@ struct Context<'a> {
     pub ctx: &'a LLVMContext,
     pub builder: Builder<'a>,
 
-    pub pvar: HashMap<Ident, PointerValue<'a>>,
-    pub ivar: HashMap<Ident, BasicValueEnum<'a>>,
+    pub pvar: HashMap<Symbol, PointerValue<'a>>,
+    pub ivar: HashMap<Symbol, BasicValueEnum<'a>>,
 
-    ident_table: IdentTable,
+    sym_table: SymTable,
 }
 
 impl<'a> Context<'a> {
@@ -31,13 +31,13 @@ impl<'a> Context<'a> {
             builder: llctx.create_builder(),
             pvar: HashMap::new(),
             ivar: HashMap::new(),
-            ident_table: qctx.ident_table,
+            sym_table: qctx.sym_table,
         }
     }
 }
 
 /// Get a `PointerValue` from a non-const `Ident` in ir.
-fn get_pointer<'a>(ident: Ident, ctx: &mut Context<'a>) -> PointerValue<'a> {
+fn get_pointer<'a>(ident: Symbol, ctx: &mut Context<'a>) -> PointerValue<'a> {
     let llctx = ctx.ctx;
     let i32_type = llctx.i32_type();
     let builder = &ctx.builder;
@@ -46,8 +46,8 @@ fn get_pointer<'a>(ident: Ident, ctx: &mut Context<'a>) -> PointerValue<'a> {
         .or_insert_with(|| builder.build_alloca(i32_type, ""))
 }
 
-fn store_value<'a>(value: BasicValueEnum<'a>, reg: Ident, ctx: &mut Context<'a>) {
-    if ctx.ident_table.is_const(reg) {
+fn store_value<'a>(value: BasicValueEnum<'a>, reg: Symbol, ctx: &mut Context<'a>) {
+    if ctx.sym_table.is_const(reg) {
         ctx.ivar.insert(reg, value);
     } else {
         let p = get_pointer(reg, ctx);
@@ -65,7 +65,7 @@ fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicVa
     match value {
         Value::Int(v) => i32_type.const_int(v as u64, false).into(),
         Value::Bool(v) => i1_type.const_int(v as u64, false).into(),
-        Value::Reg(sym) if ctx.ident_table.is_const(sym) => {
+        Value::Reg(sym) if ctx.sym_table.is_const(sym) => {
             let value = ctx.ivar.get(&sym).unwrap();
             *value
         }
