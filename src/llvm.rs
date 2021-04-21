@@ -6,11 +6,11 @@ use inkwell::{
     module::Module,
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
     values::{BasicValueEnum, FunctionValue, PointerValue},
-    OptimizationLevel,
+    IntPredicate, OptimizationLevel,
 };
 
 use crate::{
-    context::{Ident, IdentTable, Context as QContext},
+    context::{Context as QContext, Ident, IdentTable},
     quaruple::{self, Quaruple},
 };
 
@@ -69,7 +69,8 @@ fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicVa
             let value = ctx.ivar.get(&sym).unwrap();
             *value
         }
-        Value::Reg(sym) => { // is_const -> false
+        Value::Reg(sym) => {
+            // is_const -> false
             let ptr = get_pointer(sym, ctx);
             ctx.builder.build_load(ptr, "")
         }
@@ -117,6 +118,30 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                     arg2_value.into_int_value(),
                     "",
                 ),
+                ir_op
+                @
+                (BinaryOp::Eq
+                | BinaryOp::Ne
+                | BinaryOp::Lt
+                | BinaryOp::Le
+                | BinaryOp::Gt
+                | BinaryOp::Ge) => {
+                    let op = match ir_op {
+                        BinaryOp::Eq => IntPredicate::EQ,
+                        BinaryOp::Ne => IntPredicate::NE,
+                        BinaryOp::Lt => IntPredicate::SLT,
+                        BinaryOp::Le => IntPredicate::SLE,
+                        BinaryOp::Gt => IntPredicate::SGT,
+                        BinaryOp::Ge => IntPredicate::SGE,
+                        _ => unreachable!(),
+                    };
+                    ctx.builder.build_int_compare(
+                        op,
+                        arg1_value.into_int_value(),
+                        arg2_value.into_int_value(),
+                        "",
+                    )
+                }
                 _ => todo!(),
             };
             quaruple.result.map(|reg| store_value(v.into(), reg, ctx));
@@ -188,7 +213,11 @@ fn emit_obj_file(module: Module, path: &Path) {
         .unwrap();
 }
 
-pub fn emit_llvm_ir(quaruples: Vec<Quaruple>, file: &mut dyn Write, qctx: QContext) -> anyhow::Result<()> {
+pub fn emit_llvm_ir(
+    quaruples: Vec<Quaruple>,
+    file: &mut dyn Write,
+    qctx: QContext,
+) -> anyhow::Result<()> {
     let llctx = LLVMContext::create();
     let mut ctx = Context::new(&llctx, qctx);
 
