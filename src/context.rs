@@ -1,34 +1,22 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use string_interner::StringInterner;
+
+use crate::sym_table::{SymTable, Symbol};
 
 #[derive(Debug)]
 pub struct Context {
     local_sym: LookupTable,
     pub interner: StringInterner,
-    pub id: IdGen,
     pub sym_table: SymTable,
 }
 
 /// Interned string occurs in source code
 pub type IString = string_interner::DefaultSymbol;
-/// The unique identifier of a register
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct Symbol(pub usize);
 
 #[derive(Debug)]
 struct LookupTable {
     lookup: Vec<HashMap<IString, Symbol>>,
-}
-
-#[derive(Debug)]
-pub struct SymTable {
-    non_const_set: HashSet<Symbol>,
-}
-
-#[derive(Debug)]
-pub struct IdGen {
-    next_id: usize,
 }
 
 impl Context {
@@ -36,10 +24,7 @@ impl Context {
         Context {
             local_sym: LookupTable { lookup: vec![] },
             interner: StringInterner::new(),
-            id: IdGen { next_id: 0 },
-            sym_table: SymTable {
-                non_const_set: HashSet::new(),
-            },
+            sym_table: SymTable::new(),
         }
     }
 
@@ -58,12 +43,8 @@ impl Context {
             .last_mut()
             .expect("lookup table should have at least one entry");
 
-        let id = self.id.get_next_id();
-        let ident_table = &mut self.sym_table;
-        lookup.try_insert(sym, id).map_err(|_| ()).map(|id| {
-            ident_table.non_const_set.insert(*id);
-            *id
-        })
+        let id = self.sym_table.gen_var_symbol();
+        lookup.try_insert(sym, id).map_err(|_| ()).cloned()
     }
 
     pub fn sym_lookup(&self, sym: IString) -> Option<Symbol> {
@@ -80,19 +61,5 @@ impl Context {
             let name = self.interner.resolve(sym).unwrap();
             panic!("undefined name: {}", name);
         })
-    }
-}
-
-impl IdGen {
-    pub fn get_next_id(&mut self) -> Symbol {
-        let id = self.next_id;
-        self.next_id += 1;
-        Symbol(id)
-    }
-}
-
-impl SymTable {
-    pub fn is_const(&self, ident: Symbol) -> bool {
-        !self.non_const_set.contains(&ident)
     }
 }

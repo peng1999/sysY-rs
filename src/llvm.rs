@@ -10,8 +10,9 @@ use inkwell::{
 };
 
 use crate::{
-    context::{Context as QContext, SymTable, Symbol},
+    context::Context as QContext,
     quaruple::{self, Quaruple},
+    sym_table::{SymTable, Symbol},
 };
 
 struct Context<'a> {

@@ -1,6 +1,7 @@
 #![feature(bool_to_option)]
 #![feature(io_read_to_string)]
 #![feature(map_try_insert)]
+#![feature(result_cloned)]
 #![allow(clippy::new_without_default)]
 
 #[macro_use]
@@ -14,6 +15,7 @@ lalrpop_mod! {
 mod context;
 mod llvm;
 mod quaruple;
+mod sym_table;
 
 use std::{fs, io::Write, path::PathBuf};
 

@@ -53,7 +53,7 @@ fn trans_expr_val(expr: Expr, quaruples: &mut Vec<Quaruple>, ctx: &mut Context) 
     match atom_to_value(expr, ctx) {
         Left(val) => val,
         Right(expr) => {
-            let result = ctx.id.get_next_id();
+            let result = ctx.sym_table.gen_const_symbol();
             trans_compond_expr(expr, Some(result), quaruples, ctx);
             Value::Reg(result)
         }

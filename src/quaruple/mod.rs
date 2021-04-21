@@ -1,7 +1,7 @@
 mod display;
 mod trans;
 
-use crate::{ast, context::Symbol};
+use crate::{ast, sym_table::Symbol};
 
 pub use trans::trans_stmts;
 
