@@ -85,7 +85,6 @@ fn main() -> anyhow::Result<()> {
             });
 
             llvm::emit_obj(quar, &out_path, ctx);
-
         } else {
             eprintln!("The program is not a function definition!");
         }

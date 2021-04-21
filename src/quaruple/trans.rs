@@ -1,6 +1,6 @@
 use either::{Either, Left, Right};
 
-use super::{BinaryOp, Quaruple, UnaryOp, Value, Ident};
+use super::{BinaryOp, Ident, Quaruple, UnaryOp, Value};
 use crate::{
     ast::{self, Expr},
     context::Context,
