@@ -65,13 +65,15 @@ pub fn trans_stmts(stmts: Vec<ast::Stmt>, quaruples: &mut Vec<Quaruple>, ctx: &m
 
     for stmt in stmts {
         match stmt {
-            Decl(_, name, expr) => {
+            Decl(ty, name, expr) => {
                 trans_expr_place(*expr, quaruples, ctx);
                 let ident = ctx.sym_insert(name).unwrap_or_else(|_| {
                     let sym = ctx.interner.resolve(name).unwrap();
                     panic!("name redefinition: {}", sym);
                 });
                 quaruples.last_mut().unwrap().result = Some(ident);
+                // 类型断言需要在有AST时进行处理
+                ctx.sym_table.ty_assert(ident, ty);
             }
             Assign(name, expr) => match *name {
                 ast::Expr::Ident(name) => {
@@ -96,6 +98,7 @@ pub fn trans_stmts(stmts: Vec<ast::Stmt>, quaruples: &mut Vec<Quaruple>, ctx: &m
                     op: UnaryOp::Ret.with_arg(val),
                 });
             }
+            Empty => {}
             _ => unimplemented!(),
         }
     }

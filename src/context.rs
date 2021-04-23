@@ -2,11 +2,15 @@ use std::collections::HashMap;
 
 use string_interner::StringInterner;
 
-use crate::sym_table::{SymTable, Symbol};
+use crate::{
+    ast::Ty,
+    sym_table::{SymTable, Symbol},
+};
 
 #[derive(Debug)]
 pub struct Context {
-    local_sym: LookupTable,
+    var_lookup: Vec<HashMap<IString, Symbol>>,
+    ty_lookup: HashMap<IString, Ty>,
     pub interner: StringInterner,
     pub sym_table: SymTable,
 }
@@ -14,32 +18,32 @@ pub struct Context {
 /// Interned string occurs in source code
 pub type IString = string_interner::DefaultSymbol;
 
-#[derive(Debug)]
-struct LookupTable {
-    lookup: Vec<HashMap<IString, Symbol>>,
-}
-
 impl Context {
     pub fn new() -> Context {
-        Context {
-            local_sym: LookupTable { lookup: vec![] },
+        let mut ctx = Context {
+            var_lookup: vec![],
+            ty_lookup: HashMap::new(),
             interner: StringInterner::new(),
             sym_table: SymTable::new(),
-        }
+        };
+        ctx.ty_lookup = [("int", Ty::Int), ("bool", Ty::Bool)]
+            .iter()
+            .map(|(name, ty)| (ctx.interner.get_or_intern(name), *ty))
+            .collect();
+        ctx
     }
 
     pub fn sym_begin_scope(&mut self) {
-        self.local_sym.lookup.push(HashMap::new());
+        self.var_lookup.push(HashMap::new());
     }
 
     pub fn sym_end_scope(&mut self) {
-        self.local_sym.lookup.pop();
+        self.var_lookup.pop();
     }
 
     pub fn sym_insert(&mut self, sym: IString) -> Result<Symbol, ()> {
         let lookup = self
-            .local_sym
-            .lookup
+            .var_lookup
             .last_mut()
             .expect("lookup table should have at least one entry");
 
@@ -48,8 +52,7 @@ impl Context {
     }
 
     pub fn sym_lookup(&self, sym: IString) -> Option<Symbol> {
-        self.local_sym
-            .lookup
+        self.var_lookup
             .iter()
             .rev()
             .find_map(|map| map.get(&sym))
@@ -60,6 +63,13 @@ impl Context {
         self.sym_lookup(sym).unwrap_or_else(|| {
             let name = self.interner.resolve(sym).unwrap();
             panic!("undefined name: {}", name);
+        })
+    }
+
+    pub fn get_ty(&mut self, ty: IString) -> Ty {
+        self.ty_lookup.get(&ty).cloned().unwrap_or_else(|| {
+            let name = self.interner.resolve(ty).unwrap();
+            panic!("undefined type: {}", name);
         })
     }
 }

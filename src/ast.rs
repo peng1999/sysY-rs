@@ -8,13 +8,20 @@ pub enum Item {
 #[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
-    Decl(IString, IString, Box<Expr>),
+    Decl(Ty, IString, Box<Expr>),
     Assign(Box<Expr>, Box<Expr>),
     Expr(Expr),
     If(Box<Expr>, Box<Stmt>, Box<Stmt>),
     Return(Option<Expr>),
     Break,
     Empty,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ty {
+    Int,
+    Bool,
+    Array(i32),
 }
 
 #[derive(Debug)]

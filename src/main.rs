@@ -16,6 +16,7 @@ mod context;
 mod llvm;
 mod quaruple;
 mod sym_table;
+mod ty;
 
 use std::{fs, io::Write, path::PathBuf};
 
@@ -64,6 +65,8 @@ fn main() -> anyhow::Result<()> {
             ctx.sym_begin_scope();
             quaruple::trans_stmts(stmts, &mut quar, &mut ctx);
             ctx.sym_end_scope();
+
+            ty::ty_check(&quar, &mut ctx);
 
             if opts.emit.as_deref() == Some("ir") {
                 let ir_form = quar

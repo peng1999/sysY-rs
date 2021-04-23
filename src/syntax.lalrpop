@@ -37,7 +37,8 @@ Decl: ast::Stmt = {
     <t:Ident> <n:Ident> "=" <v:Expr> ";" => {
         let sym_t = ctx.interner.get_or_intern(t);
         let sym_n = ctx.interner.get_or_intern(n);
-        ast::Stmt::Decl(sym_t, sym_n, Box::new(v))
+        let ty = ctx.get_ty(sym_t);
+        ast::Stmt::Decl(ty, sym_n, Box::new(v))
     },
 }
 

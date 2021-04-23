@@ -1,4 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+use crate::ast::Ty;
 
 /// The unique identifier of a register
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -8,6 +10,7 @@ pub struct Symbol(pub usize);
 pub struct SymTable {
     next_id: usize,
     non_const_set: HashSet<Symbol>,
+    ty_table: HashMap<Symbol, Ty>,
 }
 
 impl SymTable {
@@ -15,6 +18,7 @@ impl SymTable {
         SymTable {
             next_id: 0,
             non_const_set: HashSet::new(),
+            ty_table: HashMap::new(),
         }
     }
 
@@ -36,5 +40,22 @@ impl SymTable {
 
     pub fn is_const(&self, ident: Symbol) -> bool {
         !self.non_const_set.contains(&ident)
+    }
+
+    /// 断言符号的类型
+    pub fn ty_assert(&mut self, sym: Symbol, ty: Ty) {
+        self.ty_table
+            .entry(sym)
+            .and_modify(|prev_ty| {
+                // 如果之前已经断言过，则要求相等
+                if *prev_ty != ty {
+                    panic!("error: type {:?} and {:?} incompatible.", ty, prev_ty);
+                }
+            })
+            .or_insert(ty); // 否则储存本次断言
+    }
+
+    pub fn ty_of(&self, sym: Symbol) -> Option<Ty> {
+        self.ty_table.get(&sym).cloned()
     }
 }

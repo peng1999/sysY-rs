@@ -11,7 +11,7 @@ pub struct Quaruple {
     pub op: OpArg,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Value {
     Reg(Symbol),
     Int(i32),
