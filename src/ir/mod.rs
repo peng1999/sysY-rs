@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use crate::sym_table::Symbol;
 
-pub use quaruple::{Quaruple, OpArg, BinaryOp, UnaryOp};
+pub use quaruple::{BinaryOp, OpArg, Quaruple, UnaryOp};
 pub use trans::trans_stmts;
 
 pub struct IrVec {

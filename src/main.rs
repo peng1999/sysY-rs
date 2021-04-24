@@ -13,8 +13,8 @@ lalrpop_mod! {
     pub syntax
 }
 mod context;
-mod llvm;
 mod ir;
+mod llvm;
 mod sym_table;
 mod ty;
 
