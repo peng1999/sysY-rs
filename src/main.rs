@@ -14,7 +14,7 @@ lalrpop_mod! {
 }
 mod context;
 mod llvm;
-mod quaruple;
+mod ir;
 mod sym_table;
 mod ty;
 
@@ -63,7 +63,7 @@ fn main() -> anyhow::Result<()> {
         if let Ok(ast::Item::FuncDef(_, _, _, stmts)) = ast_tree {
             let mut quar = vec![];
             ctx.sym_begin_scope();
-            quaruple::trans_stmts(stmts, &mut quar, &mut ctx);
+            ir::trans_stmts(stmts, &mut quar, &mut ctx);
             ctx.sym_end_scope();
 
             ty::ty_check(&quar, &mut ctx);

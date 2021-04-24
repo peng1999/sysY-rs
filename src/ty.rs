@@ -1,30 +1,30 @@
 use crate::{
     ast::Ty,
     context::Context,
-    quaruple::{self, Quaruple, Value},
+    ir::{self, Quaruple, Value},
 };
 
 #[derive(Debug, Copy, Clone)]
 enum Op {
-    Binary(quaruple::BinaryOp),
-    Unary(quaruple::UnaryOp),
+    Binary(ir::BinaryOp),
+    Unary(ir::UnaryOp),
 }
 
-impl From<quaruple::UnaryOp> for Op {
-    fn from(op: quaruple::UnaryOp) -> Self {
+impl From<ir::UnaryOp> for Op {
+    fn from(op: ir::UnaryOp) -> Self {
         Op::Unary(op)
     }
 }
 
-impl From<quaruple::BinaryOp> for Op {
-    fn from(op: quaruple::BinaryOp) -> Self {
+impl From<ir::BinaryOp> for Op {
+    fn from(op: ir::BinaryOp) -> Self {
         Op::Binary(op)
     }
 }
 
 /// 检查 `args` 是否相容，如果相容，返回结果类型
 fn ty_check_op(op: Op, args: &[Ty]) -> Ty {
-    use quaruple::{BinaryOp, BinaryOp::*, UnaryOp::*};
+    use ir::{BinaryOp, BinaryOp::*, UnaryOp::*};
     match (op, args) {
         // assign operator: t -> t
         (Op::Unary(Assign), &[ty]) => ty,
@@ -50,7 +50,7 @@ fn ty_from_value(value: Value, ctx: &Context) -> Ty {
 
 /// 执行类型检查
 pub fn ty_check(quaruples: &[Quaruple], ctx: &mut Context) {
-    use quaruple::OpArg;
+    use ir::OpArg;
 
     for quaruple in quaruples {
         let result_ty = match &quaruple.op {

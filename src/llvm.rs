@@ -13,7 +13,7 @@ use inkwell::{
 use crate::{
     ast::Ty,
     context::Context as QContext,
-    quaruple::{self, Quaruple},
+    ir::{self, Quaruple},
     sym_table::{SymTable, Symbol},
 };
 
@@ -66,8 +66,8 @@ fn store_value<'a>(value: BasicValueEnum<'a>, reg: Symbol, ctx: &mut Context<'a>
     }
 }
 
-fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicValueEnum<'a> {
-    use quaruple::Value;
+fn get_basic_value<'a>(value: ir::Value, ctx: &mut Context<'a>) -> BasicValueEnum<'a> {
+    use ir::Value;
 
     let llctx = ctx.ctx;
     let i32_type = llctx.i32_type();
@@ -89,7 +89,7 @@ fn get_basic_value<'a>(value: quaruple::Value, ctx: &mut Context<'a>) -> BasicVa
 }
 
 fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
-    use quaruple::{BinaryOp, OpArg, UnaryOp};
+    use ir::{BinaryOp, OpArg, UnaryOp};
 
     match quaruple.op {
         OpArg::Unary { op, arg } => {

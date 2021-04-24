@@ -1,21 +1,10 @@
-mod display;
-mod trans;
-
+use super::Value;
 use crate::{ast, sym_table::Symbol};
-
-pub use trans::trans_stmts;
 
 #[derive(Debug)]
 pub struct Quaruple {
     pub result: Option<Symbol>,
     pub op: OpArg,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum Value {
-    Reg(Symbol),
-    Int(i32),
-    Bool(bool),
 }
 
 #[derive(Debug)]
@@ -51,26 +40,20 @@ pub enum BinaryOp {
     Ge,
 }
 
-impl From<Symbol> for Value {
-    fn from(ident: Symbol) -> Value {
-        Value::Reg(ident)
-    }
-}
-
 impl OpArg {
-    fn with_result(self, result: Option<Symbol>) -> Quaruple {
+    pub fn with_result(self, result: Option<Symbol>) -> Quaruple {
         Quaruple { result, op: self }
     }
 }
 
 impl UnaryOp {
-    fn with_arg(self, arg: Value) -> OpArg {
+    pub fn with_arg(self, arg: Value) -> OpArg {
         OpArg::Unary { op: self, arg }
     }
 }
 
 impl BinaryOp {
-    fn from_ast_op(op: ast::BinOp) -> BinaryOp {
+    pub fn from_ast_op(op: ast::BinOp) -> BinaryOp {
         match op {
             ast::BinOp::Add => BinaryOp::Add,
             ast::BinOp::Sub => BinaryOp::Sub,
@@ -85,7 +68,7 @@ impl BinaryOp {
             _ => todo!(),
         }
     }
-    fn with_arg(self, arg1: Value, arg2: Value) -> OpArg {
+    pub fn with_arg(self, arg1: Value, arg2: Value) -> OpArg {
         OpArg::Binary {
             op: self,
             arg1,
