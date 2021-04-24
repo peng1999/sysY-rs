@@ -1,19 +1,8 @@
 use std::{collections::HashMap, io::Write, path::Path};
 
-use inkwell::{
-    builder::Builder,
-    context::Context as LLVMContext,
-    module::Module,
-    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
-    values::{BasicValueEnum, FunctionValue, PointerValue},
-    IntPredicate, OptimizationLevel,
-};
+use inkwell::{IntPredicate, OptimizationLevel, builder::Builder, context::Context as LLVMContext, module::Module, targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine}, types::IntType, values::{BasicValueEnum, FunctionValue, PointerValue}};
 
-use crate::{
-    context::Context as QContext,
-    quaruple::{self, Quaruple},
-    sym_table::{SymTable, Symbol},
-};
+use crate::{ast::Ty, context::Context as QContext, quaruple::{self, Quaruple}, sym_table::{SymTable, Symbol}};
 
 struct Context<'a> {
     pub ctx: &'a LLVMContext,
@@ -37,14 +26,22 @@ impl<'a> Context<'a> {
     }
 }
 
+fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> IntType<'a> {
+    let llctx = ctx.ctx;
+    match ty {
+        Ty::Int => llctx.i32_type(),
+        Ty::Bool => llctx.bool_type(),
+        _ => todo!(),
+    }
+}
+
 /// Get a `PointerValue` from a non-const `Ident` in ir.
 fn get_pointer<'a>(ident: Symbol, ctx: &mut Context<'a>) -> PointerValue<'a> {
-    let llctx = ctx.ctx;
-    let i32_type = llctx.i32_type();
+    let sym_type = llvm_type(ctx.sym_table.ty_of(ident).unwrap(), ctx);
     let builder = &ctx.builder;
     *ctx.pvar
         .entry(ident)
-        .or_insert_with(|| builder.build_alloca(i32_type, ""))
+        .or_insert_with(|| builder.build_alloca(sym_type, ""))
 }
 
 fn store_value<'a>(value: BasicValueEnum<'a>, reg: Symbol, ctx: &mut Context<'a>) {

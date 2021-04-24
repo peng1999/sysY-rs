@@ -1,16 +1,24 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ast::Ty;
+use crate::{ast::Ty, context::IString};
 
 /// The unique identifier of a register
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct Symbol(pub usize);
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct FuncSymbol(IString);
 
 #[derive(Debug)]
 pub struct SymTable {
     next_id: usize,
     non_const_set: HashSet<Symbol>,
     ty_table: HashMap<Symbol, Ty>,
+}
+
+#[derive(Debug)]
+pub struct FuncTable {
+    fn_decl: HashMap<FuncSymbol, (Vec<Ty>, Ty)>,
 }
 
 impl SymTable {
