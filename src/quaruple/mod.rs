@@ -57,6 +57,12 @@ impl From<Symbol> for Value {
     }
 }
 
+impl OpArg {
+    fn with_result(self, result: Option<Symbol>) -> Quaruple {
+        Quaruple { result, op: self }
+    }
+}
+
 impl UnaryOp {
     fn with_arg(self, arg: Value) -> OpArg {
         OpArg::Unary { op: self, arg }

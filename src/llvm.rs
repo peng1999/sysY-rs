@@ -1,8 +1,21 @@
 use std::{collections::HashMap, io::Write, path::Path};
 
-use inkwell::{IntPredicate, OptimizationLevel, builder::Builder, context::Context as LLVMContext, module::Module, targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine}, types::IntType, values::{BasicValueEnum, FunctionValue, PointerValue}};
+use inkwell::{
+    builder::Builder,
+    context::Context as LLVMContext,
+    module::Module,
+    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
+    types::IntType,
+    values::{BasicValueEnum, FunctionValue, PointerValue},
+    IntPredicate, OptimizationLevel,
+};
 
-use crate::{ast::Ty, context::Context as QContext, quaruple::{self, Quaruple}, sym_table::{SymTable, Symbol}};
+use crate::{
+    ast::Ty,
+    context::Context as QContext,
+    quaruple::{self, Quaruple},
+    sym_table::{SymTable, Symbol},
+};
 
 struct Context<'a> {
     pub ctx: &'a LLVMContext,

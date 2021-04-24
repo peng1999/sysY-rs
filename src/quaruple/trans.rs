@@ -29,10 +29,11 @@ fn trans_compond_expr(
         Expr::Binary(op, lhs, rhs) => {
             let lval = trans_expr_val(*lhs, quaruples, ctx);
             let rval = trans_expr_val(*rhs, quaruples, ctx);
-            quaruples.push(Quaruple {
-                result,
-                op: BinaryOp::from_ast_op(op).with_arg(lval, rval),
-            })
+            quaruples.push(
+                BinaryOp::from_ast_op(op)
+                    .with_arg(lval, rval)
+                    .with_result(result),
+            );
         }
         _ => unimplemented!(),
     }
@@ -41,10 +42,7 @@ fn trans_compond_expr(
 /// Translate a expr when result is unknown or unneeded.
 fn trans_expr_place(expr: Expr, quaruples: &mut Vec<Quaruple>, ctx: &mut Context) {
     match atom_to_value(expr, ctx) {
-        Left(val) => quaruples.push(Quaruple {
-            result: None,
-            op: UnaryOp::Assign.with_arg(val),
-        }),
+        Left(val) => quaruples.push(UnaryOp::Assign.with_arg(val).with_result(None)),
         Right(expr) => trans_compond_expr(expr, None, quaruples, ctx),
     }
 }
