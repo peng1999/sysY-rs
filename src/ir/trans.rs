@@ -63,12 +63,12 @@ fn trans_if_stmt(
     let label_false = ctx.next_label();
     let label_end = ctx.next_label();
     ir_vec.push(BranchOp::CondGoto(val, label_true, label_false));
-    ir_vec.push_label(label_true);
+    ir_vec.push(label_true);
     trans_stmt(true_case, ir_vec, ctx);
     ir_vec.push(BranchOp::Goto(label_end));
-    ir_vec.push_label(label_false);
+    ir_vec.push(label_false);
     trans_stmt(false_case, ir_vec, ctx);
-    ir_vec.push_label(label_end);
+    ir_vec.push(label_end);
 }
 
 fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {

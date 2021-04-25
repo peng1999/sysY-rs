@@ -5,9 +5,6 @@ use super::{BranchOp, Ir, IrVec, Label, OpArg, Quaruple, Value};
 impl Display for IrVec {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         for (i, ir) in self.ir_list.iter().enumerate() {
-            if let Some(label) = self.label_list.get(&i) {
-                write!(fmt, "{}: ", label)?;
-            }
             writeln!(fmt, "{}", ir)?;
         }
         Ok(())
@@ -25,6 +22,7 @@ impl Display for Ir {
         match self {
             Ir::Quaruple(quaruple) => write!(fmt, "{}", quaruple),
             Ir::Branch(branch) => write!(fmt, "{}", branch),
+            Ir::Label(label) => write!(fmt, "{}:", label),
         }
     }
 }

@@ -67,8 +67,6 @@ fn main() -> anyhow::Result<()> {
             ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
             ctx.sym_end_scope();
 
-            ir_vec.remove_dup_label();
-
             ty::ty_check(&ir_vec, &mut ctx);
 
             if opts.emit.as_deref() == Some("ir") {
