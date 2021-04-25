@@ -5,6 +5,17 @@ use crate::context::Context;
 
 grammar(ctx: &mut Context);
 
+match {
+    "(", ")", "{", "}", "[", "]", ";", ",",
+    "==", "!=", "<", ">", "<=", ">=", "=",
+    "+", "-", "*", "/", "!", "%",
+    "if", "else", "return", "true", "false", "break", "continue",
+    r"[a-zA-Z][a-zA-Z0-9]*",
+    r"[0-9]+",
+    r"\s*" => { }, // 忽略空白
+    r"//[^\n\r]*[\n\r]*" => { }, // 双斜线注释
+}
+
 pub Item: ast::Item = {
     <r:Ident> <n:Ident> "(" ")" "{" <b:Stmt*> "}" => {
         let r = ctx.interner.get_or_intern(r);
