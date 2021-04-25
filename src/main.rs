@@ -67,16 +67,12 @@ fn main() -> anyhow::Result<()> {
             ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
             ctx.sym_end_scope();
 
+            ir_vec.remove_dup_label();
+
             ty::ty_check(&ir_vec, &mut ctx);
 
             if opts.emit.as_deref() == Some("ir") {
-                let ir_form = ir_vec
-                    .ir_list
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                writeln!(output, "{}", ir_form)?;
+                writeln!(output, "{}", ir_vec)?;
                 break;
             }
 

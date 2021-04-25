@@ -1,6 +1,18 @@
 use std::fmt::{Display, Formatter};
 
-use super::{BranchOp, Ir, Label, OpArg, Quaruple, Value};
+use super::{BranchOp, Ir, IrVec, Label, OpArg, Quaruple, Value};
+
+impl Display for IrVec {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        for (i, ir) in self.ir_list.iter().enumerate() {
+            if let Some(label) = self.label_list.get(&i) {
+                write!(fmt, "{}: ", label)?;
+            }
+            writeln!(fmt, "{}", ir)?;
+        }
+        Ok(())
+    }
+}
 
 impl Display for Label {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -22,7 +34,7 @@ impl Display for BranchOp {
         match self {
             BranchOp::Ret(v) => write!(fmt, "ret {}", v),
             BranchOp::Goto(l) => write!(fmt, "goto {}", l),
-            BranchOp::CondGoto(v, t, f) => write!(fmt, "if {} goto {} else goto{}", v, t, f),
+            BranchOp::CondGoto(v, t, f) => write!(fmt, "if {} goto {} else goto {}", v, t, f),
         }
     }
 }

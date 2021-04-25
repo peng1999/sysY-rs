@@ -4,13 +4,18 @@ use string_interner::StringInterner;
 
 use crate::{
     ast::Ty,
+    ir::Label,
     sym_table::{SymTable, Symbol},
 };
 
 #[derive(Debug)]
 pub struct Context {
+    /// 提供从 IString 到标识符的查找表
     var_lookup: Vec<HashMap<IString, Symbol>>,
+    /// 提供从 IString 到类型名的查找表
     ty_lookup: HashMap<IString, Ty>,
+    /// 用于生成 Label
+    next_label_id: i32,
     pub interner: StringInterner,
     pub sym_table: SymTable,
 }
@@ -23,6 +28,7 @@ impl Context {
         let mut ctx = Context {
             var_lookup: vec![],
             ty_lookup: HashMap::new(),
+            next_label_id: 0,
             interner: StringInterner::new(),
             sym_table: SymTable::new(),
         };
@@ -71,5 +77,11 @@ impl Context {
             let name = self.interner.resolve(ty).unwrap();
             panic!("undefined type: {}", name);
         })
+    }
+
+    pub fn next_label(&mut self) -> Label {
+        let id = self.next_label_id;
+        self.next_label_id += 1;
+        Label(id)
     }
 }
