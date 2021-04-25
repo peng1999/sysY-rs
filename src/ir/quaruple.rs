@@ -23,7 +23,6 @@ pub enum OpArg {
 #[derive(Debug, Clone, Copy)]
 pub enum UnaryOp {
     Assign,
-    Ret,
 }
 
 #[derive(Debug, Clone, Copy)]

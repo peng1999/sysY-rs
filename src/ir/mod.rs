@@ -10,7 +10,7 @@ pub use quaruple::{BinaryOp, OpArg, Quaruple, UnaryOp};
 pub use trans::trans_stmts;
 
 pub struct IrVec {
-    ir_list: Vec<Ir>,
+    pub ir_list: Vec<Ir>,
     labels: HashMap<Label, usize>,
 }
 
@@ -52,5 +52,17 @@ impl From<BranchOp> for Ir {
 impl From<Symbol> for Value {
     fn from(ident: Symbol) -> Value {
         Value::Reg(ident)
+    }
+}
+
+impl IrVec {
+    pub fn new() -> IrVec {
+        IrVec {
+            ir_list: vec![],
+            labels: HashMap::new(),
+        }
+    }
+    fn push(&mut self, ir: impl Into<Ir>) {
+        self.ir_list.push(ir.into())
     }
 }

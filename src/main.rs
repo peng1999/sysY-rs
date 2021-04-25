@@ -20,6 +20,7 @@ mod ty;
 
 use std::{fs, io::Write, path::PathBuf};
 
+use crate::ir::IrVec;
 use clap::{AppSettings, Clap};
 
 #[derive(Clap)]
@@ -61,15 +62,16 @@ fn main() -> anyhow::Result<()> {
             break;
         }
         if let Ok(ast::Item::FuncDef(_, _, _, stmts)) = ast_tree {
-            let mut quar = vec![];
+            let mut ir_vec = IrVec::new();
             ctx.sym_begin_scope();
-            ir::trans_stmts(stmts, &mut quar, &mut ctx);
+            ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
             ctx.sym_end_scope();
 
-            ty::ty_check(&quar, &mut ctx);
+            ty::ty_check(&ir_vec, &mut ctx);
 
             if opts.emit.as_deref() == Some("ir") {
-                let ir_form = quar
+                let ir_form = ir_vec
+                    .ir_list
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
@@ -79,7 +81,7 @@ fn main() -> anyhow::Result<()> {
             }
 
             if opts.emit.as_deref() == Some("llvm") {
-                llvm::emit_llvm_ir(quar, &mut output, ctx)?;
+                llvm::emit_llvm_ir(ir_vec, &mut output, ctx)?;
                 break;
             }
 
@@ -89,7 +91,7 @@ fn main() -> anyhow::Result<()> {
                 file
             });
 
-            llvm::emit_obj(quar, &out_path, ctx);
+            llvm::emit_obj(ir_vec, &out_path, ctx);
         } else {
             eprintln!("The program is not a function definition!");
         }

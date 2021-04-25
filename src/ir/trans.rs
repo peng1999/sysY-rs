@@ -1,100 +1,94 @@
 use either::{Either, Left, Right};
 
-use super::{BinaryOp, Quaruple, Symbol, UnaryOp, Value};
+use super::{BinaryOp, BranchOp, UnaryOp, Value};
 use crate::{
     ast::{self, Expr},
     context::Context,
+    ir::{IrVec, OpArg},
 };
 
-/// Return a `Left(Value)`, or `Right(Expr)` if `expr` is not a atom.
-fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Value, Expr> {
+/// Return a `Right(Value)`, or `Left(Expr)` if `expr` is not a atom.
+fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Expr, Value> {
     match expr {
         Expr::Ident(name) => {
             let ident = ctx.sym_lookup_or_panic(name);
-            Left(ident.into())
+            Right(ident.into())
         }
-        Expr::IntLit(v) => Left(Value::Int(v)),
-        Expr::BoolLit(v) => Left(Value::Bool(v)),
-        _ => Right(expr),
+        Expr::IntLit(v) => Right(Value::Int(v)),
+        Expr::BoolLit(v) => Right(Value::Bool(v)),
+        _ => Left(expr),
     }
 }
 
 fn trans_compond_expr(
     expr: Expr,
-    result: Option<Symbol>,
-    quaruples: &mut Vec<Quaruple>,
+    ir_vec: &mut IrVec,
     ctx: &mut Context,
-) {
+) -> OpArg {
     match expr {
         Expr::Binary(op, lhs, rhs) => {
-            let lval = trans_expr_val(*lhs, quaruples, ctx);
-            let rval = trans_expr_val(*rhs, quaruples, ctx);
-            quaruples.push(
-                BinaryOp::from_ast_op(op)
-                    .with_arg(lval, rval)
-                    .with_result(result),
-            );
+            let lval = trans_expr_val(*lhs, ir_vec, ctx);
+            let rval = trans_expr_val(*rhs, ir_vec, ctx);
+            BinaryOp::from_ast_op(op).with_arg(lval, rval)
         }
         _ => unimplemented!(),
     }
 }
 
 /// Translate a expr when result is unknown or unneeded.
-fn trans_expr_place(expr: Expr, quaruples: &mut Vec<Quaruple>, ctx: &mut Context) {
+fn trans_expr_place(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpArg {
     match atom_to_value(expr, ctx) {
-        Left(val) => quaruples.push(UnaryOp::Assign.with_arg(val).with_result(None)),
-        Right(expr) => trans_compond_expr(expr, None, quaruples, ctx),
+        Right(val) => UnaryOp::Assign.with_arg(val),
+        Left(expr) => trans_compond_expr(expr, ir_vec, ctx),
     }
 }
 
-fn trans_expr_val(expr: Expr, quaruples: &mut Vec<Quaruple>, ctx: &mut Context) -> Value {
+fn trans_expr_val(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> Value {
     match atom_to_value(expr, ctx) {
-        Left(val) => val,
-        Right(expr) => {
+        Right(val) => val,
+        Left(expr) => {
             let result = ctx.sym_table.gen_const_symbol();
-            trans_compond_expr(expr, Some(result), quaruples, ctx);
+            let ir = trans_compond_expr(expr, ir_vec, ctx).with_result(Some(result));
+            ir_vec.push(ir);
             Value::Reg(result)
         }
     }
 }
 
-pub fn trans_stmts(stmts: Vec<ast::Stmt>, quaruples: &mut Vec<Quaruple>, ctx: &mut Context) {
+pub fn trans_stmts(stmts: Vec<ast::Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
     use ast::Stmt::*;
 
     for stmt in stmts {
         match stmt {
             Decl(ty, name, expr) => {
-                trans_expr_place(*expr, quaruples, ctx);
+                let arg = trans_expr_place(*expr, ir_vec, ctx);
                 let ident = ctx.sym_insert(name).unwrap_or_else(|_| {
                     let sym = ctx.interner.resolve(name).unwrap();
                     panic!("name redefinition: {}", sym);
                 });
-                quaruples.last_mut().unwrap().result = Some(ident);
+                ir_vec.push(arg.with_result(Some(ident)));
                 // 类型断言需要在有AST时进行处理
                 ctx.sym_table.ty_assert(ident, ty);
             }
             Assign(name, expr) => match *name {
                 ast::Expr::Ident(name) => {
-                    trans_expr_place(*expr, quaruples, ctx);
+                    let arg = trans_expr_place(*expr, ir_vec, ctx);
                     let ident = ctx.sym_lookup_or_panic(name);
-                    quaruples.last_mut().unwrap().result = Some(ident);
+                    ir_vec.push(arg.with_result(Some(ident)));
                 }
                 _ => todo!(),
             },
             Expr(expr) => {
-                trans_expr_place(expr, quaruples, ctx);
+                trans_expr_place(expr, ir_vec, ctx);
             }
             Block(inner) => {
                 ctx.sym_begin_scope();
-                trans_stmts(inner, quaruples, ctx);
+                trans_stmts(inner, ir_vec, ctx);
                 ctx.sym_end_scope();
             }
             Return(expr) => {
-                let val = trans_expr_val(expr.unwrap(), quaruples, ctx);
-                quaruples.push(Quaruple {
-                    result: None,
-                    op: UnaryOp::Ret.with_arg(val),
-                });
+                let val = trans_expr_val(expr.unwrap(), ir_vec, ctx);
+                ir_vec.push(BranchOp::Ret(val));
             }
             Empty => {}
             _ => unimplemented!(),
