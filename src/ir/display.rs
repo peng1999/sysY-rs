@@ -4,7 +4,7 @@ use super::{BranchOp, Ir, IrVec, Label, OpArg, Quaruple, Value};
 
 impl Display for IrVec {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        for (i, ir) in self.ir_list.iter().enumerate() {
+        for ir in &self.ir_list {
             writeln!(fmt, "{}", ir)?;
         }
         Ok(())

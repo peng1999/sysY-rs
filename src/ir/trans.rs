@@ -58,10 +58,11 @@ fn trans_if_stmt(
     ir_vec: &mut IrVec,
     ctx: &mut Context,
 ) {
-    let val = trans_expr_val(expr, ir_vec, ctx);
     let label_true = ctx.next_label();
     let label_false = ctx.next_label();
     let label_end = ctx.next_label();
+
+    let val = trans_expr_val(expr, ir_vec, ctx);
     ir_vec.push(BranchOp::CondGoto(val, label_true, label_false));
     ir_vec.push(label_true);
     trans_stmt(true_case, ir_vec, ctx);

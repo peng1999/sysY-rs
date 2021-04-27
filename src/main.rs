@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
             break;
         }
         if let Ok(ast::Item::FuncDef(_, _, _, stmts)) = ast_tree {
-            let mut ir_vec = IrVec::new();
+            let mut ir_vec = IrVec::new(ctx.next_label());
             ctx.sym_begin_scope();
             ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
             ctx.sym_end_scope();
