@@ -1,13 +1,35 @@
 use std::fmt::{Display, Formatter};
 
-use super::{BranchOp, Ir, IrVec, Label, OpArg, Quaruple, Value};
+use super::{BranchOp, Ir, IrBlock, IrGraph, IrVec, Label, OpArg, Quaruple, Value};
 
 impl Display for IrVec {
+    // with linebreak
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         for ir in &self.ir_list {
             writeln!(fmt, "{}", ir)?;
         }
         Ok(())
+    }
+}
+
+impl Display for IrGraph {
+    // with linebreak
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        for &label in &self.block_order {
+            writeln!(fmt, "{}:", label)?;
+            write!(fmt, "{}", self.blocks[&label])?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for IrBlock {
+    // with linebreak
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        for quaruple in &self.ir_list {
+            writeln!(fmt, "{}", quaruple)?;
+        }
+        writeln!(fmt, "{}", self.exit)
     }
 }
 

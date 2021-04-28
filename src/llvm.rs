@@ -13,7 +13,7 @@ use inkwell::{
 use crate::{
     ast::Ty,
     context::Context as QContext,
-    ir::{self, IrVec, Quaruple},
+    ir::{self, IrGraph, Quaruple},
     sym_table::{SymTable, Symbol},
 };
 
@@ -159,7 +159,7 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
     };
 }
 
-fn build_function<'a>(function: FunctionValue, ir_vec: IrVec, ctx: &mut Context<'a>) {
+fn build_function<'a>(function: FunctionValue, ir_graph: IrGraph, ctx: &mut Context<'a>) {
     let llctx = ctx.ctx;
     let builder = &ctx.builder;
 
@@ -172,7 +172,7 @@ fn build_function<'a>(function: FunctionValue, ir_vec: IrVec, ctx: &mut Context<
     // }
 }
 
-fn quaruple_to_module<'a>(ir_vec: IrVec, ctx: &mut Context<'a>) -> Module<'a> {
+fn ir_graph_to_module<'a>(ir_graph: IrGraph, ctx: &mut Context<'a>) -> Module<'a> {
     let llctx = ctx.ctx;
     let module = llctx.create_module("main");
 
@@ -185,7 +185,7 @@ fn quaruple_to_module<'a>(ir_vec: IrVec, ctx: &mut Context<'a>) -> Module<'a> {
     // main()
     let fn_main_type = i32_type.fn_type(&[], false);
     let fn_main = module.add_function("main", fn_main_type, None);
-    build_function(fn_main, ir_vec, ctx);
+    build_function(fn_main, ir_graph, ctx);
 
     // let a1 = builder
     //     .build_call(fn_getchar, &[], "")
@@ -224,22 +224,22 @@ fn emit_obj_file(module: Module, path: &Path) {
         .unwrap();
 }
 
-pub fn emit_llvm_ir(ir_vec: IrVec, file: &mut dyn Write, qctx: QContext) -> anyhow::Result<()> {
+pub fn emit_llvm_ir(ir_graph: IrGraph, file: &mut dyn Write, qctx: QContext) -> anyhow::Result<()> {
     let llctx = LLVMContext::create();
     let mut ctx = Context::new(&llctx, qctx);
 
-    let module = quaruple_to_module(ir_vec, &mut ctx);
+    let module = ir_graph_to_module(ir_graph, &mut ctx);
 
     let ir_form = module.print_to_string().to_string();
     writeln!(file, "{}", ir_form)?;
     Ok(())
 }
 
-pub fn emit_obj(ir_vec: IrVec, path: &Path, qctx: QContext) {
+pub fn emit_obj(ir_graph: IrGraph, path: &Path, qctx: QContext) {
     let llctx = LLVMContext::create();
     let mut ctx = Context::new(&llctx, qctx);
 
-    let module = quaruple_to_module(ir_vec, &mut ctx);
+    let module = ir_graph_to_module(ir_graph, &mut ctx);
 
     emit_obj_file(module, path);
 }

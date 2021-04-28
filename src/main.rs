@@ -20,13 +20,13 @@ mod ty;
 
 use std::{fs, io::Write, path::PathBuf};
 
-use crate::ir::IrVec;
+use crate::ir::{IrGraph, IrVec};
 use clap::{AppSettings, Clap};
 
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
-    #[clap(long, possible_values = &["ast", "ir", "llvm"])]
+    #[clap(long, possible_values = &["ast", "ir", "mir", "llvm"])]
     emit: Option<String>,
 
     /// Output file
@@ -74,8 +74,15 @@ fn main() -> anyhow::Result<()> {
                 break;
             }
 
+            let ir_graph = IrGraph::from_ir_vec(ir_vec);
+
+            if opts.emit.as_deref() == Some("mir") {
+                writeln!(output, "{}", ir_graph)?;
+                break;
+            }
+
             if opts.emit.as_deref() == Some("llvm") {
-                llvm::emit_llvm_ir(ir_vec, &mut output, ctx)?;
+                llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
                 break;
             }
 
@@ -85,7 +92,7 @@ fn main() -> anyhow::Result<()> {
                 file
             });
 
-            llvm::emit_obj(ir_vec, &out_path, ctx);
+            llvm::emit_obj(ir_graph, &out_path, ctx);
         } else {
             eprintln!("The program is not a function definition!");
         }
