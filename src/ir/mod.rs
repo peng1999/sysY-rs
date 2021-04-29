@@ -21,8 +21,8 @@ pub struct IrVec {
 
 #[derive(Debug)]
 pub struct IrGraph {
-    blocks: HashMap<Label, IrBlock>,
-    block_order: Vec<Label>,
+    pub blocks: HashMap<Label, IrBlock>,
+    pub block_order: Vec<Label>,
 }
 
 #[derive(Debug)]
@@ -34,8 +34,8 @@ pub enum Ir {
 
 #[derive(Debug)]
 pub struct IrBlock {
-    ir_list: Vec<Quaruple>,
-    exit: BranchOp,
+    pub ir_list: Vec<Quaruple>,
+    pub exit: BranchOp,
 }
 
 #[derive(Debug)]

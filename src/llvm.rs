@@ -1,6 +1,7 @@
 use std::{collections::HashMap, io::Write, path::Path};
 
 use inkwell::{
+    basic_block::BasicBlock,
     builder::Builder,
     context::Context as LLVMContext,
     module::Module,
@@ -13,16 +14,17 @@ use inkwell::{
 use crate::{
     ast::Ty,
     context::Context as QContext,
-    ir::{self, IrGraph, Quaruple},
+    ir::{self, BranchOp, IrGraph, Label, Quaruple},
     sym_table::{SymTable, Symbol},
 };
 
 struct Context<'a> {
-    pub ctx: &'a LLVMContext,
-    pub builder: Builder<'a>,
+    ctx: &'a LLVMContext,
+    builder: Builder<'a>,
 
-    pub pvar: HashMap<Symbol, PointerValue<'a>>,
-    pub ivar: HashMap<Symbol, BasicValueEnum<'a>>,
+    pvar: HashMap<Symbol, PointerValue<'a>>,
+    ivar: HashMap<Symbol, BasicValueEnum<'a>>,
+    label_block: HashMap<Label, BasicBlock<'a>>,
 
     sym_table: SymTable,
 }
@@ -34,6 +36,7 @@ impl<'a> Context<'a> {
             builder: llctx.create_builder(),
             pvar: HashMap::new(),
             ivar: HashMap::new(),
+            label_block: HashMap::new(),
             sym_table: qctx.sym_table,
         }
     }
@@ -99,9 +102,7 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                     let ident = quaruple.result.expect("Assign must have a result");
                     let ptr = get_pointer(ident, ctx);
                     ctx.builder.build_store(ptr, arg_value);
-                } // UnaryOp::Ret => {
-                  //     ctx.builder.build_return(Some(&arg_value));
-                  // }
+                }
             }
         }
         OpArg::Binary { op, arg1, arg2 } => {
@@ -159,17 +160,41 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
     };
 }
 
-fn build_function<'a>(function: FunctionValue, ir_graph: IrGraph, ctx: &mut Context<'a>) {
-    let llctx = ctx.ctx;
-    let builder = &ctx.builder;
+fn trans_branch(branch_op: BranchOp, ctx: &mut Context<'_>) {
+    match branch_op {
+        BranchOp::Ret(val) => {
+            let value = get_basic_value(val, ctx);
+            ctx.builder.build_return(Some(&value));
+        }
+        BranchOp::Goto(label) => {
+            ctx.builder
+                .build_unconditional_branch(ctx.label_block[&label]);
+        }
+        BranchOp::CondGoto(val, true_label, false_label) => {
+            let value = get_basic_value(val, ctx).into_int_value();
+            let then_block = ctx.label_block[&true_label];
+            let else_block = ctx.label_block[&false_label];
+            ctx.builder
+                .build_conditional_branch(value, then_block, else_block);
+        }
+    }
+}
 
-    let entry = llctx.append_basic_block(function, "entry");
-    builder.position_at_end(entry);
-
-    todo!()
-    // for quaruple in ir_vec {
-    //     trans_quaruple(quaruple, ctx);
-    // }
+fn build_function(function: FunctionValue, mut ir_graph: IrGraph, ctx: &mut Context<'_>) {
+    let mut label_block = HashMap::new();
+    for &label in &ir_graph.block_order {
+        let block = ctx.ctx.append_basic_block(function, &label.to_string());
+        label_block.insert(label, block);
+    }
+    ctx.label_block = label_block;
+    for &label in &ir_graph.block_order {
+        ctx.builder.position_at_end(ctx.label_block[&label]);
+        let ir_block = ir_graph.blocks.remove(&label).unwrap();
+        for quaruple in ir_block.ir_list {
+            trans_quaruple(quaruple, ctx);
+        }
+        trans_branch(ir_block.exit, ctx);
+    }
 }
 
 fn ir_graph_to_module<'a>(ir_graph: IrGraph, ctx: &mut Context<'a>) -> Module<'a> {
