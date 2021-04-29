@@ -12,6 +12,7 @@ pub enum Stmt {
     Assign(Box<Expr>, Box<Expr>),
     Expr(Expr),
     If(Box<Expr>, Box<Stmt>, Box<Stmt>),
+    While(Box<Expr>, Box<Stmt>),
     Return(Option<Expr>),
     Break,
     Empty,

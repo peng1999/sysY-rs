@@ -9,7 +9,7 @@ match {
     "(", ")", "{", "}", "[", "]", ";", ",",
     "==", "!=", "<", ">", "<=", ">=", "=",
     "+", "-", "*", "/", "!", "%",
-    "if", "else", "return", "true", "false", "break", "continue",
+    "if", "else", "while", "return", "true", "false", "break", "continue",
     r"[a-zA-Z][a-zA-Z0-9]*",
     r"[0-9]+",
     r"\s*" => { }, // 忽略空白
@@ -28,11 +28,13 @@ Stmt: ast::Stmt = {
     StmtOther,
     "if" "(" <c:Expr> ")" <t:Stmt> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(ast::Stmt::Empty)),
     "if" "(" <c:Expr> ")" <t:WithElse> "else" <f:Stmt> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(f)),
+    "while" "(" <c:Expr> ")" <t:Stmt> => ast::Stmt::While(Box::new(c), Box::new(t)),
 }
 
 WithElse = {
     StmtOther,
     "if" "(" <c:Expr> ")" <t:WithElse> "else" <f:WithElse> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(f)),
+    "while" "(" <c:Expr> ")" <t:WithElse> => ast::Stmt::While(Box::new(c), Box::new(t)),
 }
 
 StmtOther: ast::Stmt = {

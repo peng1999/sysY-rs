@@ -27,7 +27,8 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
             let rval = trans_expr_val(*rhs, ir_vec, ctx);
             BinaryOp::from_ast_op(op).with_arg(lval, rval)
         }
-        _ => unimplemented!(),
+        // Neg
+        expr => unimplemented!("{:?}", expr),
     }
 }
 
@@ -72,6 +73,25 @@ fn trans_if_stmt(
     ir_vec.push(label_end);
 }
 
+fn trans_while_stmt(
+    expr: ast::Expr,
+    body: ast::Stmt,
+    ir_vec: &mut IrVec,
+    ctx: &mut Context,
+) {
+    let label_start = ctx.next_label();
+    let label_body = ctx.next_label();
+    let label_end = ctx.next_label();
+
+    ir_vec.push(label_start);
+    let val = trans_expr_val(expr, ir_vec, ctx);
+    ir_vec.push(BranchOp::CondGoto(val, label_body, label_end));
+    ir_vec.push(label_body);
+    trans_stmt(body, ir_vec, ctx);
+    ir_vec.push(BranchOp::Goto(label_start));
+    ir_vec.push(label_end);
+}
+
 fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
     use ast::Stmt::*;
 
@@ -109,6 +129,9 @@ fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
         Empty => {}
         If(expr, true_case, false_case) => {
             trans_if_stmt(*expr, *true_case, *false_case, ir_vec, ctx);
+        }
+        While(expr, body) => {
+            trans_while_stmt(*expr, *body, ir_vec, ctx);
         }
         _ => unimplemented!(),
     }
