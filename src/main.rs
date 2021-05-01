@@ -5,12 +5,13 @@
 #[macro_use]
 extern crate lalrpop_util;
 
-mod ast;
 lalrpop_mod! {
     #[allow(clippy::all)]
     pub syntax
 }
+mod ast;
 mod context;
+mod error;
 mod ir;
 mod llvm;
 mod sym_table;
@@ -18,8 +19,12 @@ mod ty;
 
 use std::{fs, io::Write, path::PathBuf};
 
-use crate::ir::{IrGraph, IrVec};
 use clap::{AppSettings, Clap};
+
+use crate::{
+    error::LogResult,
+    ir::{IrGraph, IrVec},
+};
 
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
@@ -52,47 +57,47 @@ fn main() -> anyhow::Result<()> {
 
     #[allow(clippy::never_loop)] // Just want to use the `break`
     loop {
-        let mut ctx = context::Context::new();
+        let mut ctx = context::Context::new(&source);
         let parser = syntax::ItemParser::new();
-        let ast_tree = parser.parse(&mut ctx, &source);
+        let ast_tree = parser.parse(&mut ctx, &source).unwrap_or_log(&mut ctx);
         if opts.emit.as_deref() == Some("ast") {
             writeln!(output, "{:#?}", ast_tree)?;
             break;
         }
-        if let Ok(ast::Item::FuncDef(_, _, _, stmts)) = ast_tree {
-            let mut ir_vec = IrVec::new(ctx.next_label());
-            ctx.sym_begin_scope();
-            ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
-            ctx.sym_end_scope();
+        match ast_tree {
+            ast::Item::FuncDef(_, _, _, stmts) => {
+                let mut ir_vec = IrVec::new(ctx.next_label());
+                ctx.sym_begin_scope();
+                ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
+                ctx.sym_end_scope();
 
-            ty::ty_check(&ir_vec, &mut ctx);
+                ty::ty_check(&ir_vec, &mut ctx);
 
-            if opts.emit.as_deref() == Some("ir") {
-                writeln!(output, "{}", ir_vec)?;
-                break;
+                if opts.emit.as_deref() == Some("ir") {
+                    writeln!(output, "{}", ir_vec)?;
+                    break;
+                }
+
+                let ir_graph = IrGraph::from_ir_vec(ir_vec);
+
+                if opts.emit.as_deref() == Some("mir") {
+                    writeln!(output, "{}", ir_graph)?;
+                    break;
+                }
+
+                if opts.emit.as_deref() == Some("llvm") {
+                    llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
+                    break;
+                }
+
+                let mut file = opts.input_file;
+                let out_path = opts.output_file.unwrap_or_else(|| {
+                    file.set_extension("o");
+                    file
+                });
+
+                llvm::emit_obj(ir_graph, &out_path, ctx);
             }
-
-            let ir_graph = IrGraph::from_ir_vec(ir_vec);
-
-            if opts.emit.as_deref() == Some("mir") {
-                writeln!(output, "{}", ir_graph)?;
-                break;
-            }
-
-            if opts.emit.as_deref() == Some("llvm") {
-                llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
-                break;
-            }
-
-            let mut file = opts.input_file;
-            let out_path = opts.output_file.unwrap_or_else(|| {
-                file.set_extension("o");
-                file
-            });
-
-            llvm::emit_obj(ir_graph, &out_path, ctx);
-        } else {
-            eprintln!("The program is not a function definition!");
         }
 
         break;

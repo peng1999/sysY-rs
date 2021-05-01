@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::ast;
 use crate::context::Context;
 
-grammar(ctx: &mut Context);
+grammar(ctx: &mut Context<'input>);
 
 match {
     "(", ")", "{", "}", "[", "]", ";", ",",

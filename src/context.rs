@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Context {
+pub struct Context<'source> {
     /// 提供从 IString 到标识符的查找表
     var_lookup: Vec<HashMap<IString, Symbol>>,
     /// 提供从 IString 到类型名的查找表
@@ -18,19 +18,21 @@ pub struct Context {
     next_label_id: i32,
     pub interner: StringInterner,
     pub sym_table: SymTable,
+    pub source: &'source str,
 }
 
 /// Interned string occurs in source code
 pub type IString = string_interner::DefaultSymbol;
 
-impl Context {
-    pub fn new() -> Context {
+impl Context<'_> {
+    pub fn new(source: &str) -> Context {
         let mut ctx = Context {
             var_lookup: vec![],
             ty_lookup: HashMap::new(),
             next_label_id: 0,
             interner: StringInterner::new(),
             sym_table: SymTable::new(),
+            source,
         };
         ctx.ty_lookup = [("int", Ty::Int), ("bool", Ty::Bool)]
             .iter()
