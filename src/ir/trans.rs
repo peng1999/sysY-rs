@@ -73,12 +73,7 @@ fn trans_if_stmt(
     ir_vec.push(label_end);
 }
 
-fn trans_while_stmt(
-    expr: ast::Expr,
-    body: ast::Stmt,
-    ir_vec: &mut IrVec,
-    ctx: &mut Context,
-) {
+fn trans_while_stmt(expr: ast::Expr, body: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
     let label_start = ctx.next_label();
     let label_body = ctx.next_label();
     let label_end = ctx.next_label();
