@@ -57,9 +57,9 @@ pub fn ty_check(ir_vec: &IrVec, ctx: &mut Context) {
     for ir in &ir_vec.ir_list {
         match ir {
             Ir::Quaruple(quaruple) => {
-                let result_ty = match &quaruple.op {
-                    &OpArg::Unary { op, arg } => ty_check_op(op.into(), &[arg], ctx),
-                    &OpArg::Binary { op, arg1, arg2 } => ty_check_op(op.into(), &[arg1, arg2], ctx),
+                let result_ty = match quaruple.op {
+                    OpArg::Unary { op, arg } => ty_check_op(op.into(), &[arg], ctx),
+                    OpArg::Binary { op, arg1, arg2 } => ty_check_op(op.into(), &[arg1, arg2], ctx),
                 };
                 if let Some(result) = quaruple.result {
                     ctx.sym_table.ty_assert(result, result_ty);

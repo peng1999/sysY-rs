@@ -1,5 +1,3 @@
-#![feature(bool_to_option)]
-#![feature(io_read_to_string)]
 #![feature(map_try_insert)]
 #![feature(result_cloned)]
 #![allow(clippy::new_without_default)]
