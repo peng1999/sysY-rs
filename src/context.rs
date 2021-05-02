@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, process::exit};
 
 use string_interner::StringInterner;
 
@@ -75,10 +75,12 @@ impl Context<'_> {
             .copied()
     }
 
-    pub fn sym_lookup_or_panic(&self, sym: IString) -> Symbol {
+    pub fn sym_lookup_or_panic(&self, sym: IString, span: (usize, usize)) -> Symbol {
         self.sym_lookup(sym).unwrap_or_else(|| {
+            self.line_col_lookup.lookup_and_eprint(span.0);
             let name = self.interner.resolve(sym).unwrap();
-            panic!("undefined name: {}", name);
+            eprintln!("error: undefined name: {}", name);
+            exit(1);
         })
     }
 

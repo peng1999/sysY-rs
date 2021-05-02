@@ -2,29 +2,29 @@ use either::{Either, Left, Right};
 
 use super::{BinaryOp, BranchOp, UnaryOp, Value};
 use crate::{
-    ast::{self, Expr},
+    ast::{self, Expr, ExprKind},
     context::Context,
     ir::{IrVec, OpArg},
 };
 
 /// Return a `Right(Value)`, or `Left(Expr)` if `expr` is not a atom.
 fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Expr, Value> {
-    match expr {
-        Expr::Ident(name) => {
-            let ident = ctx.sym_lookup_or_panic(name);
+    match *expr {
+        ExprKind::Ident(name) => {
+            let ident = ctx.sym_lookup_or_panic(name, expr.span());
             Right(ident.into())
         }
-        Expr::IntLit(v) => Right(Value::Int(v)),
-        Expr::BoolLit(v) => Right(Value::Bool(v)),
+        ExprKind::IntLit(v) => Right(Value::Int(v)),
+        ExprKind::BoolLit(v) => Right(Value::Bool(v)),
         _ => Left(expr),
     }
 }
 
 fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpArg {
-    match expr {
-        Expr::Binary(op, lhs, rhs) => {
-            let lval = trans_expr_val(*lhs, ir_vec, ctx);
-            let rval = trans_expr_val(*rhs, ir_vec, ctx);
+    match expr.into_inner() {
+        ExprKind::Binary(op, lhs, rhs) => {
+            let lval = trans_expr_val(lhs, ir_vec, ctx);
+            let rval = trans_expr_val(rhs, ir_vec, ctx);
             BinaryOp::from_ast_op(op).with_arg(lval, rval)
         }
         // Neg
@@ -92,7 +92,7 @@ fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
 
     match stmt {
         Decl(ty, name, expr) => {
-            let arg = trans_expr_place(*expr, ir_vec, ctx);
+            let arg = trans_expr_place(expr, ir_vec, ctx);
             let ident = ctx.sym_insert(name).unwrap_or_else(|_| {
                 let sym = ctx.interner.resolve(name).unwrap();
                 panic!("name redefinition: {}", sym);
@@ -102,9 +102,9 @@ fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
             ctx.sym_table.ty_assert(ident, ty);
         }
         Assign(name, expr) => match *name {
-            ast::Expr::Ident(name) => {
-                let arg = trans_expr_place(*expr, ir_vec, ctx);
-                let ident = ctx.sym_lookup_or_panic(name);
+            ast::ExprKind::Ident(sym) => {
+                let arg = trans_expr_place(expr, ir_vec, ctx);
+                let ident = ctx.sym_lookup_or_panic(sym, name.span());
                 ir_vec.push(arg.with_result(Some(ident)));
             }
             _ => todo!(),
@@ -123,10 +123,10 @@ fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
         }
         Empty => {}
         If(expr, true_case, false_case) => {
-            trans_if_stmt(*expr, *true_case, *false_case, ir_vec, ctx);
+            trans_if_stmt(expr, *true_case, *false_case, ir_vec, ctx);
         }
         While(expr, body) => {
-            trans_while_stmt(*expr, *body, ir_vec, ctx);
+            trans_while_stmt(expr, *body, ir_vec, ctx);
         }
         _ => unimplemented!(),
     }

@@ -31,8 +31,7 @@ impl<'input> LogError for ParseError<usize, Token<'input>, &'static str> {
                 ..
             }
             | UnrecognizedEOF { location, .. } => {
-                let (line, col) = ctx.line_col_lookup.lookup(*location);
-                eprint!("{}:{}: ", line, col);
+                ctx.line_col_lookup.lookup_and_eprint(*location);
             }
             _ => {}
         }
@@ -83,6 +82,11 @@ impl LineColLookup<'_> {
         let (&start_pos, &line_num) = self.line_start.range(..=byte_pos).next_back().unwrap();
         let col_num = 1 + self.source[start_pos..byte_pos].chars().count();
         (line_num, col_num)
+    }
+
+    pub fn lookup_and_eprint(&self, byte_pos: usize) {
+        let (line, col) = self.lookup(byte_pos);
+        eprint!("{}:{}:", line, col);
     }
 }
 

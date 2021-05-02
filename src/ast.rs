@@ -1,4 +1,35 @@
+use std::ops::Deref;
+
 use crate::context::IString;
+
+#[derive(Debug)]
+pub struct Spanned<T> {
+    start: usize,
+    end: usize,
+    pub inner: Box<T>,
+}
+
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &*self.inner
+    }
+}
+
+impl<T> Spanned<T> {
+    pub fn new(start: usize, end: usize, inner: T) -> Spanned<T> {
+        Spanned { start, end, inner: Box::new(inner) }
+    }
+
+    pub fn into_inner(self) -> T {
+        *self.inner
+    }
+
+    pub fn span(&self) -> (usize, usize) {
+        (self.start, self.end)
+    }
+}
 
 #[derive(Debug)]
 pub enum Item {
@@ -8,11 +39,11 @@ pub enum Item {
 #[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
-    Decl(Ty, IString, Box<Expr>),
-    Assign(Box<Expr>, Box<Expr>),
+    Decl(Ty, IString, Expr),
+    Assign(Expr, Expr),
     Expr(Expr),
-    If(Box<Expr>, Box<Stmt>, Box<Stmt>),
-    While(Box<Expr>, Box<Stmt>),
+    If(Expr, Box<Stmt>, Box<Stmt>),
+    While(Expr, Box<Stmt>),
     Return(Option<Expr>),
     Break,
     Empty,
@@ -25,12 +56,14 @@ pub enum Ty {
     Array(i32),
 }
 
+pub type Expr = Spanned<ExprKind>;
+
 #[derive(Debug)]
-pub enum Expr {
-    Binary(BinOp, Box<Expr>, Box<Expr>),
-    Unary(UnOp, Box<Expr>),
-    Call(Box<Expr>, Vec<Expr>),
-    Index(Box<Expr>, Vec<Expr>),
+pub enum ExprKind {
+    Binary(BinOp, Expr, Expr),
+    Unary(UnOp, Expr),
+    Call(Expr, Vec<Expr>),
+    Index(Expr, Vec<Expr>),
     Ident(IString),
     IntLit(i32),
     BoolLit(bool),

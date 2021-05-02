@@ -26,21 +26,21 @@ pub Item: ast::Item = {
 
 Stmt: ast::Stmt = {
     StmtOther,
-    "if" "(" <c:Expr> ")" <t:Stmt> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(ast::Stmt::Empty)),
-    "if" "(" <c:Expr> ")" <t:WithElse> "else" <f:Stmt> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(f)),
-    "while" "(" <c:Expr> ")" <t:Stmt> => ast::Stmt::While(Box::new(c), Box::new(t)),
+    "if" "(" <c:Expr> ")" <t:Stmt> => ast::Stmt::If(c, Box::new(t), Box::new(ast::Stmt::Empty)),
+    "if" "(" <c:Expr> ")" <t:WithElse> "else" <f:Stmt> => ast::Stmt::If(c, Box::new(t), Box::new(f)),
+    "while" "(" <c:Expr> ")" <t:Stmt> => ast::Stmt::While(c, Box::new(t)),
 }
 
 WithElse = {
     StmtOther,
-    "if" "(" <c:Expr> ")" <t:WithElse> "else" <f:WithElse> => ast::Stmt::If(Box::new(c), Box::new(t), Box::new(f)),
-    "while" "(" <c:Expr> ")" <t:WithElse> => ast::Stmt::While(Box::new(c), Box::new(t)),
+    "if" "(" <c:Expr> ")" <t:WithElse> "else" <f:WithElse> => ast::Stmt::If(c, Box::new(t), Box::new(f)),
+    "while" "(" <c:Expr> ")" <t:WithElse> => ast::Stmt::While(c, Box::new(t)),
 }
 
 StmtOther: ast::Stmt = {
     Decl,
     <Expr> ";" => ast::Stmt::Expr(<>),
-    <l:Expr> "=" <r:Expr> ";" => ast::Stmt::Assign(Box::new(l), Box::new(r)),
+    <l:Expr> "=" <r:Expr> ";" => ast::Stmt::Assign(l, r),
     "{" <Stmt*> "}" => ast::Stmt::Block(<>),
     ";" => ast::Stmt::Empty,
     "return" <v:Expr?> ";" => ast::Stmt::Return(v),
@@ -51,7 +51,7 @@ Decl: ast::Stmt = {
         let sym_t = ctx.interner.get_or_intern(t);
         let sym_n = ctx.interner.get_or_intern(n);
         let ty = ctx.get_ty(sym_t);
-        ast::Stmt::Decl(ty, sym_n, Box::new(v))
+        ast::Stmt::Decl(ty, sym_n, v)
     },
 }
 
@@ -59,25 +59,34 @@ Expr: ast::Expr = CmpExpr;
 
 CmpExpr = {
     AddExpr,
-    <l:CmpExpr> <op:CmpOp> <r:AddExpr> => ast::Expr::Binary(op, Box::new(l), Box::new(r)),
+    Spanned<CmpExprKind>,
 }
+CmpExprKind: ast::ExprKind =
+    <l:CmpExpr> <op:CmpOp> <r:AddExpr> => ast::ExprKind::Binary(op, l, r);
 
 AddExpr = {
     MulExpr,
-    <l:AddExpr> <op:AddOp> <r:MulExpr> => ast::Expr::Binary(op, Box::new(l), Box::new(r)),
+    Spanned<AddExprKind>,
 }
+AddExprKind: ast::ExprKind =
+    <l:AddExpr> <op:AddOp> <r:MulExpr> => ast::ExprKind::Binary(op, l, r);
 
 MulExpr = {
     UnaryExpr,
-    <l:MulExpr> <op:MulOp> <r:UnaryExpr> => ast::Expr::Binary(op, Box::new(l), Box::new(r)),
+    Spanned<MulExprKind>,
 }
+MulExprKind: ast::ExprKind =
+    <l:MulExpr> <op:MulOp> <r:UnaryExpr> => ast::ExprKind::Binary(op, l, r);
 
 UnaryExpr = {
-    <op:UnaryOp> <e:UnaryExpr>              => ast::Expr::Unary(op, Box::new(e)),
-    <name:IdentExpr> "(" <p:ParamList> ")"  => ast::Expr::Call(Box::new(name), p),
-    <name:IdentExpr> "(" ")"                => ast::Expr::Call(Box::new(name), vec![]),
-    <name:IdentExpr> <p:IndexList>          => ast::Expr::Index(Box::new(name), p),
+    Spanned<UnaryExprKind>,
     Scalar,
+}
+UnaryExprKind: ast::ExprKind = {
+    <op:UnaryOp> <e:UnaryExpr>              => ast::ExprKind::Unary(op, e),
+    <name:IdentExpr> "(" <p:ParamList> ")"  => ast::ExprKind::Call(name, p),
+    <name:IdentExpr> "(" ")"                => ast::ExprKind::Call(name, vec![]),
+    <name:IdentExpr> <p:IndexList>          => ast::ExprKind::Index(name, p),
 }
 
 ParamList: Vec<ast::Expr> = {
@@ -91,23 +100,28 @@ IndexList: Vec<ast::Expr> = {
 }
 
 Scalar = {
-    BoolLit,
-    NumLit,
+    Spanned<BoolLit>,
+    Spanned<NumLit>,
     IdentExpr,
     "(" <e:Expr> ")" => e,
 }
 
-IdentExpr: ast::Expr = Ident => ast::Expr::Ident(ctx.interner.get_or_intern(<>));
+IdentExpr: ast::Expr = Spanned<IdentKind>;
+IdentKind: ast::ExprKind = <s:Ident> => ast::ExprKind::Ident(ctx.interner.get_or_intern(s));
+
+Spanned<T>: ast::Expr = {
+    <l:@L> <v:T> <r:@R> => ast::Spanned::new(l, r, v),
+}
 
 //
 // Tokens
 //
 
-BoolLit: ast::Expr = {
-    "true" => ast::Expr::BoolLit(true),
-    "false" => ast::Expr::BoolLit(false),
+BoolLit: ast::ExprKind = {
+    "true" => ast::ExprKind::BoolLit(true),
+    "false" => ast::ExprKind::BoolLit(false),
 }
-NumLit: ast::Expr = r"[0-9]+" => ast::Expr::IntLit(i32::from_str(<>).unwrap());
+NumLit: ast::ExprKind = r"[0-9]+" => ast::ExprKind::IntLit(i32::from_str(<>).unwrap());
 Ident = r"[a-zA-Z][a-zA-Z0-9]*";
 
 UnaryOp: ast::UnOp = {
