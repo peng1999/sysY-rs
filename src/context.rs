@@ -4,6 +4,7 @@ use string_interner::StringInterner;
 
 use crate::{
     ast::Ty,
+    error::LineColLookup,
     ir::Label,
     sym_table::{SymTable, Symbol},
 };
@@ -16,9 +17,14 @@ pub struct Context<'source> {
     ty_lookup: HashMap<IString, Ty>,
     /// 用于生成 Label
     next_label_id: i32,
+    /// 用于 String Intern
     pub interner: StringInterner,
+    /// 符号表
     pub sym_table: SymTable,
+    /// 源代码
     pub source: &'source str,
+    /// 查找行号和列号
+    pub line_col_lookup: LineColLookup<'source>,
 }
 
 /// Interned string occurs in source code
@@ -26,19 +32,21 @@ pub type IString = string_interner::DefaultSymbol;
 
 impl Context<'_> {
     pub fn new(source: &str) -> Context {
-        let mut ctx = Context {
+        let mut interner = StringInterner::new();
+        let ty_lookup = [("int", Ty::Int), ("bool", Ty::Bool)]
+            .iter()
+            .map(|(name, ty)| (interner.get_or_intern(name), *ty))
+            .collect();
+
+        Context {
             var_lookup: vec![],
-            ty_lookup: HashMap::new(),
+            ty_lookup,
             next_label_id: 0,
-            interner: StringInterner::new(),
+            interner,
             sym_table: SymTable::new(),
             source,
-        };
-        ctx.ty_lookup = [("int", Ty::Int), ("bool", Ty::Bool)]
-            .iter()
-            .map(|(name, ty)| (ctx.interner.get_or_intern(name), *ty))
-            .collect();
-        ctx
+            line_col_lookup: LineColLookup::new(source),
+        }
     }
 
     pub fn sym_begin_scope(&mut self) {
