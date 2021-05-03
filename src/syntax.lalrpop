@@ -40,10 +40,10 @@ WithElse = {
 StmtOther: ast::Stmt = {
     Decl,
     <Expr> ";" => ast::Stmt::Expr(<>),
-    <l:Expr> "=" <r:Expr> ";" => ast::Stmt::Assign(l, r),
+    <Expr> "=" <Expr> ";" => ast::Stmt::Assign(<>),
     "{" <Stmt*> "}" => ast::Stmt::Block(<>),
     ";" => ast::Stmt::Empty,
-    "return" <v:Expr?> ";" => ast::Stmt::Return(v),
+    "return" <Expr?> ";" => ast::Stmt::Return(<>),
 }
 
 Decl: ast::Stmt = {

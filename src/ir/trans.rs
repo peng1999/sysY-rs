@@ -2,7 +2,7 @@ use either::{Either, Left, Right};
 
 use super::{BinaryOp, BranchOp, UnaryOp, Value};
 use crate::{
-    ast::{self, Expr, ExprKind},
+    ast::{Expr, ExprKind, Stmt},
     context::Context,
     ir::{IrVec, OpArg},
 };
@@ -53,9 +53,9 @@ fn trans_expr_val(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> Value {
 }
 
 fn trans_if_stmt(
-    expr: ast::Expr,
-    true_case: ast::Stmt,
-    false_case: ast::Stmt,
+    expr: Expr,
+    true_case: Stmt,
+    false_case: Stmt,
     ir_vec: &mut IrVec,
     ctx: &mut Context,
 ) {
@@ -73,7 +73,7 @@ fn trans_if_stmt(
     ir_vec.push(label_end);
 }
 
-fn trans_while_stmt(expr: ast::Expr, body: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
+fn trans_while_stmt(expr: Expr, body: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
     let label_start = ctx.next_label();
     let label_body = ctx.next_label();
     let label_end = ctx.next_label();
@@ -87,8 +87,8 @@ fn trans_while_stmt(expr: ast::Expr, body: ast::Stmt, ir_vec: &mut IrVec, ctx: &
     ir_vec.push(label_end);
 }
 
-fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
-    use ast::Stmt::*;
+fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
+    use Stmt::*;
 
     match stmt {
         Decl(ty, name, expr) => {
@@ -102,7 +102,7 @@ fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
             ctx.sym_table.ty_assert(ident, ty);
         }
         Assign(name, expr) => match *name {
-            ast::ExprKind::Ident(sym) => {
+            ExprKind::Ident(sym) => {
                 let arg = trans_expr_place(expr, ir_vec, ctx);
                 let ident = ctx.sym_lookup_or_panic(sym, name.span());
                 ir_vec.push(arg.with_result(Some(ident)));
@@ -132,7 +132,7 @@ fn trans_stmt(stmt: ast::Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
     }
 }
 
-pub fn trans_stmts(stmts: Vec<ast::Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
+pub fn trans_stmts(stmts: Vec<Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
     for stmt in stmts {
         trans_stmt(stmt, ir_vec, ctx);
     }
