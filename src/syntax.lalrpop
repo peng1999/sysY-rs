@@ -110,7 +110,7 @@ IdentExpr: ast::Expr = Spanned<IdentKind>;
 IdentKind: ast::ExprKind = <s:Ident> => ast::ExprKind::Ident(ctx.interner.get_or_intern(s));
 
 Spanned<T>: ast::Expr = {
-    <l:@L> <v:T> <r:@R> => ast::Spanned::new(l, r, v),
+    <l:@L> <v:T> <r:@R> => ast::Spanned::new((l, r), v),
 }
 
 //

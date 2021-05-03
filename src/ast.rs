@@ -4,9 +4,8 @@ use crate::context::IString;
 
 #[derive(Debug)]
 pub struct Spanned<T> {
-    start: usize,
-    end: usize,
-    pub inner: Box<T>,
+    span: (usize, usize),
+    inner: Box<T>,
 }
 
 impl<T> Deref for Spanned<T> {
@@ -18,8 +17,8 @@ impl<T> Deref for Spanned<T> {
 }
 
 impl<T> Spanned<T> {
-    pub fn new(start: usize, end: usize, inner: T) -> Spanned<T> {
-        Spanned { start, end, inner: Box::new(inner) }
+    pub fn new(span: (usize, usize), inner: T) -> Spanned<T> {
+        Spanned { span, inner: Box::new(inner) }
     }
 
     pub fn into_inner(self) -> T {
@@ -27,7 +26,7 @@ impl<T> Spanned<T> {
     }
 
     pub fn span(&self) -> (usize, usize) {
-        (self.start, self.end)
+        self.span
     }
 }
 
