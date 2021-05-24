@@ -27,6 +27,14 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
             let rval = trans_expr_val(rhs, ir_vec, ctx);
             BinaryOp::from_ast_op(op).with_arg(lval, rval)
         }
+        ExprKind::Call(fun, args) => {
+            let fun_val = trans_expr_val(fun, ir_vec, ctx);
+            let args_val = args
+                .into_iter()
+                .map(|e| trans_expr_val(e, ir_vec, ctx))
+                .collect();
+            OpArg::call(fun_val, args_val)
+        }
         // Neg
         expr => unimplemented!("{:?}", expr),
     }

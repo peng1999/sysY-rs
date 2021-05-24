@@ -158,6 +158,7 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                 store_value(v.into(), reg, ctx);
             }
         }
+        OpArg::Call { .. } => todo!("call llvm gen"),
     };
 }
 
