@@ -71,12 +71,12 @@ fn main() -> anyhow::Result<()> {
                 ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
                 ctx.sym_end_scope();
 
-                ty::ty_check(&ir_vec, &mut ctx);
-
                 if opts.emit.as_deref() == Some("ir") {
                     writeln!(output, "{}", ir_vec)?;
                     break;
                 }
+
+                ty::ty_check(&ir_vec, &mut ctx);
 
                 let ir_graph = IrGraph::from_ir_vec(ir_vec);
 

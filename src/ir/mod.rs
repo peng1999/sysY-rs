@@ -90,6 +90,15 @@ impl From<Symbol> for Value {
     }
 }
 
+impl Value {
+    pub fn unwrap_reg(self) -> Symbol {
+        match self {
+            Value::Reg(s) => s,
+            o => panic!("Value should not contain {:?}", o),
+        }
+    }
+}
+
 impl IrVec {
     pub fn new(entry: Label) -> IrVec {
         IrVec {

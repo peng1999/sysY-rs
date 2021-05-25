@@ -1,24 +1,22 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{ast::Ty, context::IString};
+use crate::ast::Ty;
 
 /// The unique identifier of a register
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct Symbol(pub usize);
-
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct FuncSymbol(IString);
 
 #[derive(Debug)]
 pub struct SymTable {
     next_id: usize,
     non_const_set: HashSet<Symbol>,
     ty_table: HashMap<Symbol, Ty>,
+    sym_name: HashMap<Symbol, String>
 }
 
 #[derive(Debug)]
 pub struct FuncTable {
-    fn_decl: HashMap<FuncSymbol, (Vec<Ty>, Ty)>,
+    fn_decl: HashMap<Symbol, (Vec<Ty>, Ty)>,
 }
 
 impl SymTable {
@@ -27,6 +25,7 @@ impl SymTable {
             next_id: 0,
             non_const_set: HashSet::new(),
             ty_table: HashMap::new(),
+            sym_name: HashMap::new(),
         }
     }
 
@@ -61,6 +60,12 @@ impl SymTable {
                 }
             })
             .or_insert(ty); // 否则储存本次断言
+    }
+
+    /// 给符号添加类型和名字（用于链接）
+    pub fn ty_assert_with_name(&mut self, sym: Symbol, ty: Ty, name: String) {
+        self.ty_assert(sym, ty);
+        self.sym_name.insert(sym, name);
     }
 
     pub fn ty_of(&self, sym: Symbol) -> Option<Ty> {

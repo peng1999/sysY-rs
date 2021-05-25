@@ -48,11 +48,12 @@ pub enum Stmt {
     Empty,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Int,
     Bool,
     Array(i32),
+    Fun(Vec<Ty>, Option<Box<Ty>>),
 }
 
 pub type Expr = Spanned<ExprKind>;

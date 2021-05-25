@@ -29,13 +29,13 @@ fn ty_check_op(op: Op, args: &[Value], ctx: &Context) -> Ty {
     let args: Vec<_> = args.iter().map(|v| ty_from_value(*v, ctx)).collect();
     match (op, args.as_slice()) {
         // assign operator: t -> t
-        (Op::Unary(Assign), &[ty]) => ty,
+        (Op::Unary(Assign), [ty]) => ty.clone(),
         // arithmetic operator: (int, int) -> int
         (Op::Binary(Add | Sub | Mul | Div), &[Ty::Int, Ty::Int]) => Ty::Int,
         // comparison operator: (int, int) -> bool
         (Op::Binary(Lt | Le | Gt | Ge), &[Ty::Int, Ty::Int]) => Ty::Bool,
         // equality operator: (t, t) -> bool
-        (Op::Binary(BinaryOp::Eq | Ne), &[ty_l, ty_r]) if ty_l == ty_r => Ty::Bool,
+        (Op::Binary(BinaryOp::Eq | Ne), [ty_l, ty_r]) if ty_l == ty_r => Ty::Bool,
         // if bool
         (Op::Cond, &[Ty::Bool]) => Ty::Bool,
         _ => panic!("{:?} are not compatible with {:?}", args, op),

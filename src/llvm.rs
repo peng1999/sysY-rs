@@ -94,21 +94,14 @@ fn get_basic_value<'a>(value: ir::Value, ctx: &mut Context<'a>) -> BasicValueEnu
 fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
     use ir::{BinaryOp, OpArg, UnaryOp};
 
-    match quaruple.op {
-        OpArg::Unary { op, arg } => {
-            let arg_value = get_basic_value(arg, ctx);
-            match op {
-                UnaryOp::Assign => {
-                    let ident = quaruple.result.expect("Assign must have a result");
-                    let ptr = get_pointer(ident, ctx);
-                    ctx.builder.build_store(ptr, arg_value);
-                }
-            }
-        }
+    let v = match quaruple.op {
+        OpArg::Unary { op, arg } => match op {
+            UnaryOp::Assign => get_basic_value(arg, ctx),
+        },
         OpArg::Binary { op, arg1, arg2 } => {
             let arg1_value = get_basic_value(arg1, ctx);
             let arg2_value = get_basic_value(arg2, ctx);
-            let v = match op {
+            match op {
                 BinaryOp::Add => ctx.builder.build_int_add(
                     arg1_value.into_int_value(),
                     arg2_value.into_int_value(),
@@ -153,13 +146,18 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                         "",
                     )
                 }
-            };
-            if let Some(reg) = quaruple.result {
-                store_value(v.into(), reg, ctx);
             }
+            .into()
         }
-        OpArg::Call { .. } => todo!("call llvm gen"),
+        OpArg::Call { fun, args } => {
+            let fun = fun.unwrap_reg();
+            //ctx.builder.build_call();
+            todo!("call llvm gen")
+        }
     };
+    if let Some(reg) = quaruple.result {
+        store_value(v.into(), reg, ctx);
+    }
 }
 
 fn trans_branch(branch_op: BranchOp, ctx: &mut Context<'_>) {
