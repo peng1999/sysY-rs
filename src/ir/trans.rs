@@ -6,6 +6,7 @@ use crate::{
     context::Context,
     ir::{IrVec, OpArg},
 };
+use crate::ast::Item;
 
 /// Return a `Right(Value)`, or `Left(Expr)` if `expr` is not a atom.
 fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Expr, Value> {
@@ -140,8 +141,22 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
     }
 }
 
-pub fn trans_stmts(stmts: Vec<Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
+fn trans_stmts(stmts: Vec<Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
     for stmt in stmts {
         trans_stmt(stmt, ir_vec, ctx);
+    }
+}
+
+pub fn trans_items(items: Vec<Item>, ctx: &mut Context) {
+    for item in items {
+        match item {
+            Item::FuncDef(func_head, stmts) => {
+                let mut ir_vec = IrVec::new(ctx.next_label());
+                ctx.sym_begin_scope();
+                trans_stmts(stmts, &mut ir_vec, ctx);
+                ctx.sym_end_scope();
+            }
+            Item::FuncDecl(_) => {}
+        }
     }
 }

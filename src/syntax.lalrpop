@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::ast;
-use crate::context::Context;
+use crate::context::{self, Context};
 
 grammar(ctx: &mut Context<'input>);
 
@@ -16,11 +16,35 @@ match {
     r"//[^\n\r]*[\n\r]*" => { }, // 双斜线注释
 }
 
-pub Item: ast::Item = {
-    <r:Ident> <n:Ident> "(" ")" "{" <b:Stmt*> "}" => {
+pub Prog = <Item*>;
+
+Item: ast::Item = {
+    <f:FuncHead> "{" <b:Stmt*> "}" => ast::Item::FuncDef(f, b),
+    <FuncHead> ";" => ast::Item::FuncDecl(<>),
+}
+
+FuncHead: ast::FuncHead = {
+    <r:Ident> <n:Ident> "(" <mut v:(<TypedName> ",")*> <e:TypedName?> ")" => {
         let r = ctx.interner.get_or_intern(r);
         let n = ctx.interner.get_or_intern(n);
-        ast::Item::FuncDef(r, n, vec![], b)
+        let r_ty = ctx.get_ty(r);
+        if let Some(e) = e {
+            v.push(e);
+        }
+        ast::FuncHead {
+            name: n,
+            ret_ty: r_ty,
+            param: v,
+        }
+    }
+}
+
+TypedName: (ast::Ty, context::IString) = {
+    <t:Ident> <n:Ident> => {
+        let sym_t = ctx.interner.get_or_intern(t);
+        let sym_n = ctx.interner.get_or_intern(n);
+        let ty = ctx.get_ty(sym_t);
+        (ty, sym_n)
     }
 }
 
@@ -47,10 +71,8 @@ StmtOther: ast::Stmt = {
 }
 
 Decl: ast::Stmt = {
-    <t:Ident> <n:Ident> "=" <v:Expr> ";" => {
-        let sym_t = ctx.interner.get_or_intern(t);
-        let sym_n = ctx.interner.get_or_intern(n);
-        let ty = ctx.get_ty(sym_t);
+    <tn:TypedName> "=" <v:Expr> ";" => {
+        let (ty, sym_n) = tn;
         ast::Stmt::Decl(ty, sym_n, v)
     },
 }

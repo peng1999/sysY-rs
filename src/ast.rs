@@ -32,7 +32,15 @@ impl<T> Spanned<T> {
 
 #[derive(Debug)]
 pub enum Item {
-    FuncDef(IString, IString, Vec<()>, Vec<Stmt>),
+    FuncDef(FuncHead, Vec<Stmt>),
+    FuncDecl(FuncHead),
+}
+
+#[derive(Debug)]
+pub struct FuncHead {
+    pub name: IString,
+    pub ret_ty: Ty,
+    pub param: Vec<(Ty, IString)>,
 }
 
 #[derive(Debug)]

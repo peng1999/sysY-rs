@@ -58,47 +58,41 @@ fn main() -> anyhow::Result<()> {
     #[allow(clippy::never_loop)] // Just want to use the `break`
     loop {
         let mut ctx = context::Context::new(&source);
-        let parser = syntax::ItemParser::new();
+        let parser = syntax::ProgParser::new();
         let ast_tree = parser.parse(&mut ctx, &source).unwrap_or_log(&mut ctx);
         if opts.emit.as_deref() == Some("ast") {
             writeln!(output, "{:#?}", ast_tree)?;
             break;
         }
-        match ast_tree {
-            ast::Item::FuncDef(_, _, _, stmts) => {
-                let mut ir_vec = IrVec::new(ctx.next_label());
-                ctx.sym_begin_scope();
-                ir::trans_stmts(stmts, &mut ir_vec, &mut ctx);
-                ctx.sym_end_scope();
 
-                if opts.emit.as_deref() == Some("ir") {
-                    writeln!(output, "{}", ir_vec)?;
-                    break;
-                }
+        ir::trans_items(ast_tree, &mut ctx);
 
-                ty::ty_check(&ir_vec, &mut ctx);
-
-                let ir_graph = IrGraph::from_ir_vec(ir_vec);
-
-                if opts.emit.as_deref() == Some("mir") {
-                    writeln!(output, "{}", ir_graph)?;
-                    break;
-                }
-
-                if opts.emit.as_deref() == Some("llvm") {
-                    llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
-                    break;
-                }
-
-                let mut file = opts.input_file;
-                let out_path = opts.output_file.unwrap_or_else(|| {
-                    file.set_extension("o");
-                    file
-                });
-
-                llvm::emit_obj(ir_graph, &out_path, ctx);
-            }
+        if opts.emit.as_deref() == Some("ir") {
+            writeln!(output, "{}", todo!("ir_vec"))?;
+            break;
         }
+
+        ty::ty_check(todo!("&ir_vec"), &mut ctx);
+
+        let ir_graph = IrGraph::from_ir_vec(todo!("ir_vec"));
+
+        if opts.emit.as_deref() == Some("mir") {
+            writeln!(output, "{}", ir_graph)?;
+            break;
+        }
+
+        if opts.emit.as_deref() == Some("llvm") {
+            llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
+            break;
+        }
+
+        let mut file = opts.input_file;
+        let out_path = opts.output_file.unwrap_or_else(|| {
+            file.set_extension("o");
+            file
+        });
+
+        llvm::emit_obj(ir_graph, &out_path, ctx);
 
         break;
     }

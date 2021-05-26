@@ -9,7 +9,7 @@ use itertools::Itertools;
 use crate::sym_table::Symbol;
 
 pub use quaruple::{BinaryOp, OpArg, Quaruple, UnaryOp};
-pub use trans::trans_stmts;
+pub use trans::trans_items;
 
 /// The linear intermediate representation.
 ///
