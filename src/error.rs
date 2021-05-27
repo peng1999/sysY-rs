@@ -2,8 +2,9 @@ use std::{collections::BTreeMap, process::exit};
 
 use lalrpop_util::{lexer::Token, ParseError};
 
-use crate::context::Context;
+use crate::context::{Context, IString};
 
+/// 用于可以进行输出的错误
 pub trait LogError {
     fn log_and_exit(self, ctx: &mut Context) -> !;
 }
@@ -18,6 +19,24 @@ impl<T, E: LogError> LogResult for Result<T, E> {
 
     fn unwrap_or_log(self, ctx: &mut Context) -> T {
         self.unwrap_or_else(|e| e.log_and_exit(ctx))
+    }
+}
+
+pub struct SymbolRedefError {
+    name: IString,
+}
+
+impl SymbolRedefError {
+    pub fn new(name: IString) -> SymbolRedefError {
+        SymbolRedefError { name }
+    }
+}
+
+impl LogError for SymbolRedefError {
+    fn log_and_exit(self, ctx: &mut Context) -> ! {
+        let sym = ctx.interner.resolve(self.name).unwrap();
+        eprintln!("name redefinition: {}", sym);
+        exit(1);
     }
 }
 

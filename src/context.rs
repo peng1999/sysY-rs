@@ -4,7 +4,7 @@ use string_interner::StringInterner;
 
 use crate::{
     ast::Ty,
-    error::LineColLookup,
+    error::{LineColLookup, SymbolRedefError},
     ir::Label,
     sym_table::{SymTable, Symbol},
 };
@@ -38,7 +38,7 @@ impl Context<'_> {
             .map(|(name, ty)| (interner.get_or_intern_static(name), ty.clone()))
             .collect();
 
-        let mut ctx = Context {
+        Context {
             var_lookup: vec![],
             ty_lookup,
             next_label_id: 0,
@@ -46,19 +46,7 @@ impl Context<'_> {
             sym_table: SymTable::new(),
             source,
             line_col_lookup: LineColLookup::new(source),
-        };
-        // 添加全局作用域
-        ctx.sym_begin_scope();
-        for (fun_name, ty) in [
-            ("getchar", Ty::Fun(vec![], Some(Box::new(Ty::Int)))),
-            ("putchar", Ty::Fun(vec![Ty::Int], None)),
-        ] {
-            let istring = ctx.interner.get_or_intern_static(fun_name);
-            let sym = ctx.sym_insert_const(istring).unwrap();
-            ctx.sym_table
-                .ty_assert_with_name(sym, ty, fun_name.to_string());
         }
-        ctx
     }
 
     pub fn sym_begin_scope(&mut self) {
@@ -69,24 +57,30 @@ impl Context<'_> {
         self.var_lookup.pop();
     }
 
-    pub fn sym_insert(&mut self, sym: IString) -> Result<Symbol, ()> {
+    pub fn sym_insert(&mut self, sym: IString) -> Result<Symbol, SymbolRedefError> {
         let lookup = self
             .var_lookup
             .last_mut()
             .expect("lookup table should have at least one entry");
 
         let id = self.sym_table.gen_var_symbol();
-        lookup.try_insert(sym, id).map_err(|_| ()).cloned()
+        lookup
+            .try_insert(sym, id)
+            .map_err(|_| SymbolRedefError::new(sym))
+            .cloned()
     }
 
-    pub fn sym_insert_const(&mut self, sym: IString) -> Result<Symbol, ()> {
+    pub fn sym_insert_const(&mut self, sym: IString) -> Result<Symbol, SymbolRedefError> {
         let lookup = self
             .var_lookup
             .last_mut()
             .expect("lookup table should have at least one entry");
 
         let id = self.sym_table.gen_const_symbol();
-        lookup.try_insert(sym, id).map_err(|_| ()).cloned()
+        lookup
+            .try_insert(sym, id)
+            .map_err(|_| SymbolRedefError::new(sym))
+            .cloned()
     }
 
     pub fn sym_lookup(&self, sym: IString) -> Option<Symbol> {

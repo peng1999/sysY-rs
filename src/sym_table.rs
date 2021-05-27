@@ -71,4 +71,8 @@ impl SymTable {
     pub fn ty_of(&self, sym: Symbol) -> Option<Ty> {
         self.ty_table.get(&sym).cloned()
     }
+
+    pub fn name_of(&self, sym: Symbol) -> Option<&str> {
+        self.sym_name.get(&sym).map(String::as_ref)
+    }
 }

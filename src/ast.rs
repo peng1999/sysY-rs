@@ -1,4 +1,9 @@
-use std::ops::Deref;
+use std::{
+    fmt::{Display, Formatter},
+    ops::Deref,
+};
+
+use itertools::Itertools;
 
 use crate::context::IString;
 
@@ -18,7 +23,10 @@ impl<T> Deref for Spanned<T> {
 
 impl<T> Spanned<T> {
     pub fn new(span: (usize, usize), inner: T) -> Spanned<T> {
-        Spanned { span, inner: Box::new(inner) }
+        Spanned {
+            span,
+            inner: Box::new(inner),
+        }
     }
 
     pub fn into_inner(self) -> T {
@@ -39,7 +47,7 @@ pub enum Item {
 #[derive(Debug)]
 pub struct FuncHead {
     pub name: IString,
-    pub ret_ty: Ty,
+    pub ret_ty: Option<Ty>,
     pub param: Vec<(Ty, IString)>,
 }
 
@@ -60,7 +68,7 @@ pub enum Stmt {
 pub enum Ty {
     Int,
     Bool,
-    Array(i32),
+    Array(Box<Ty>, i32),
     Fun(Vec<Ty>, Option<Box<Ty>>),
 }
 
@@ -99,4 +107,22 @@ pub enum UnOp {
     Pos,
     Neg,
     Not,
+}
+
+impl Display for Ty {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Ty::Int => write!(fmt, "int"),
+            Ty::Bool => write!(fmt, "bool"),
+            Ty::Array(ty, cnt) => write!(fmt, "{}[{}]", ty, cnt),
+            Ty::Fun(param, ret) => {
+                if let Some(ty) = ret {
+                    write!(fmt, "{}", ty)?;
+                } else {
+                    write!(fmt, "void")?;
+                }
+                write!(fmt, "({})", param.iter().join(", "))
+            }
+        }
+    }
 }

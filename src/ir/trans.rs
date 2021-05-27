@@ -2,11 +2,12 @@ use either::{Either, Left, Right};
 
 use super::{BinaryOp, BranchOp, UnaryOp, Value};
 use crate::{
-    ast::{Expr, ExprKind, Stmt},
+    ast::{Expr, ExprKind, FuncHead, Item, Stmt, Ty},
     context::Context,
+    error::LogResult,
     ir::{IrVec, OpArg},
+    sym_table::Symbol,
 };
-use crate::ast::Item;
 
 /// Return a `Right(Value)`, or `Left(Expr)` if `expr` is not a atom.
 fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Expr, Value> {
@@ -102,10 +103,7 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
     match stmt {
         Decl(ty, name, expr) => {
             let arg = trans_expr_place(expr, ir_vec, ctx);
-            let ident = ctx.sym_insert(name).unwrap_or_else(|_| {
-                let sym = ctx.interner.resolve(name).unwrap();
-                panic!("name redefinition: {}", sym);
-            });
+            let ident = ctx.sym_insert(name).unwrap_or_log(ctx);
             ir_vec.push(arg.with_result(Some(ident)));
             // 类型断言需要在有AST时进行处理
             ctx.sym_table.ty_assert(ident, ty);
@@ -147,16 +145,43 @@ fn trans_stmts(stmts: Vec<Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
     }
 }
 
-pub fn trans_items(items: Vec<Item>, ctx: &mut Context) {
+fn register_func(func_head: FuncHead, ctx: &mut Context) -> Symbol {
+    let name = ctx.interner.resolve(func_head.name).unwrap().to_string();
+    let param_ty = func_head.param.into_iter().map(|(ty, _)| ty).collect();
+    let fun_ty = Ty::Fun(param_ty, func_head.ret_ty.map(Box::new));
+
+    let fun_sym = ctx.sym_insert_const(func_head.name).unwrap_or_log(ctx);
+    ctx.sym_table.ty_assert_with_name(fun_sym, fun_ty, name);
+
+    fun_sym
+}
+
+pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, IrVec)> {
+    let mut fun_ir = Vec::with_capacity(items.len());
+    // 进入全局作用域
+    ctx.sym_begin_scope();
+
     for item in items {
         match item {
             Item::FuncDef(func_head, stmts) => {
+                let param = func_head.param.clone();
+                let fun_sym = register_func(func_head, ctx);
+
                 let mut ir_vec = IrVec::new(ctx.next_label());
                 ctx.sym_begin_scope();
+                for (ty, name) in param {
+                    let sym = ctx.sym_insert(name).unwrap_or_log(ctx);
+                    ctx.sym_table.ty_assert(sym, ty);
+                }
                 trans_stmts(stmts, &mut ir_vec, ctx);
                 ctx.sym_end_scope();
+
+                fun_ir.push((fun_sym, ir_vec));
             }
-            Item::FuncDecl(_) => {}
+            Item::FuncDecl(func_head) => {
+                register_func(func_head, ctx);
+            }
         }
     }
+    fun_ir
 }

@@ -65,10 +65,18 @@ fn main() -> anyhow::Result<()> {
             break;
         }
 
-        ir::trans_items(ast_tree, &mut ctx);
+        let fun_ir = ir::trans_items(ast_tree, &mut ctx);
 
         if opts.emit.as_deref() == Some("ir") {
-            writeln!(output, "{}", todo!("ir_vec"))?;
+            for (name, ir_vec) in fun_ir {
+                writeln!(
+                    output,
+                    "{}: {}",
+                    ctx.sym_table.name_of(name).unwrap(),
+                    ctx.sym_table.ty_of(name).unwrap()
+                )?;
+                writeln!(output, "{}", ir_vec)?;
+            }
             break;
         }
 

@@ -25,9 +25,10 @@ Item: ast::Item = {
 
 FuncHead: ast::FuncHead = {
     <r:Ident> <n:Ident> "(" <mut v:(<TypedName> ",")*> <e:TypedName?> ")" => {
+        let void = ctx.interner.get_or_intern_static("void");
         let r = ctx.interner.get_or_intern(r);
         let n = ctx.interner.get_or_intern(n);
-        let r_ty = ctx.get_ty(r);
+        let r_ty = (r != void).then(|| ctx.get_ty(r));
         if let Some(e) = e {
             v.push(e);
         }
