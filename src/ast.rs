@@ -1,6 +1,9 @@
 use std::ops::Deref;
 
-use crate::{context::IString, ty::Ty};
+use crate::ty::Ty;
+
+/// Interned string occurs in source code
+pub type IString = string_interner::DefaultSymbol;
 
 #[derive(Debug)]
 pub struct Spanned<T> {

@@ -3,6 +3,7 @@ use std::{collections::HashMap, process::exit};
 use string_interner::StringInterner;
 
 use crate::{
+    ast::IString,
     error::{LineColLookup, SymbolRedefError},
     ir::Label,
     sym_table::{SymTable, Symbol},
@@ -26,9 +27,6 @@ pub struct Context<'source> {
     /// 查找行号和列号
     pub line_col_lookup: LineColLookup<'source>,
 }
-
-/// Interned string occurs in source code
-pub type IString = string_interner::DefaultSymbol;
 
 impl Context<'_> {
     pub fn new(source: &str) -> Context {

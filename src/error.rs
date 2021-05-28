@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, process::exit};
 
 use lalrpop_util::{lexer::Token, ParseError};
 
-use crate::context::{Context, IString};
+use crate::{ast::IString, context::Context};
 
 /// 用于可以进行输出的错误
 pub trait LogError {
