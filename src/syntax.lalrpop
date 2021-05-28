@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::ast;
-use crate::context::{self, Context};
+use crate::context::Context;
 use crate::ty::Ty;
 
 grammar(ctx: &mut Context<'input>);
@@ -41,7 +41,7 @@ FuncHead: ast::FuncHead = {
     }
 }
 
-TypedName: (Ty, context::IString) = {
+TypedName: (Ty, ast::IString) = {
     <t:Ident> <n:Ident> => {
         let sym_t = ctx.interner.get_or_intern(t);
         let sym_n = ctx.interner.get_or_intern(n);
