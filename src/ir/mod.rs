@@ -122,6 +122,7 @@ impl IrGraph {
         let (labels, ir_list): (Vec<_>, Vec<_>) =
             group_by.into_iter().partition(|&(is_label, _)| is_label);
 
+        // find first label of every block
         let block_order: Vec<Label> = labels
             .into_iter()
             .map(|(_, group)| {
@@ -140,23 +141,31 @@ impl IrGraph {
             .map(|(_, groups)| groups)
             .enumerate()
             .map(|(idx, groups)| {
-                let mut branch = None;
                 let mut quaruples = vec![];
-                for ir in groups {
-                    match ir {
-                        Ir::Quaruple(quaruple) => quaruples.push(quaruple),
-                        Ir::Branch(op) => branch = Some(op),
+
+                let mut iter = groups.into_iter();
+                let branch = loop {
+                    match iter.next() {
+                        Some(Ir::Quaruple(quaruple)) => quaruples.push(quaruple),
+                        Some(Ir::Branch(op)) => {
+                            let exit = match op {
+                                BranchOp::Goto(label) => BranchOp::Goto(label_map[&label]),
+                                BranchOp::CondGoto(value, true_label, false_label) => {
+                                    BranchOp::CondGoto(
+                                        value,
+                                        label_map[&true_label],
+                                        label_map[&false_label],
+                                    )
+                                }
+                                ret @ BranchOp::Ret(_) => ret,
+                            };
+                            break Some(exit);
+                        }
+                        None => break None,
                         _ => unreachable!(),
                     }
-                }
-                let exit = match branch {
-                    Some(BranchOp::Goto(label)) => BranchOp::Goto(label_map[&label]),
-                    Some(BranchOp::CondGoto(value, true_label, false_label)) => {
-                        BranchOp::CondGoto(value, label_map[&true_label], label_map[&false_label])
-                    }
-                    Some(ret @ BranchOp::Ret(_)) => ret,
-                    None => BranchOp::Goto(block_order[idx + 1]),
                 };
+                let exit = branch.unwrap_or_else(|| BranchOp::Goto(block_order[idx + 1]));
                 (
                     block_order[idx],
                     IrBlock {
