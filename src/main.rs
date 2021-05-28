@@ -17,13 +17,15 @@ mod llvm;
 mod sym_table;
 mod ty;
 
-use std::{fs, io::Write, path::PathBuf};
+use std::{fmt::Display, fs, io::Write, path::PathBuf};
 
 use clap::{AppSettings, Clap};
 
 use crate::{
+    context::Context,
     error::LogResult,
     ir::{IrGraph, IrVec},
+    sym_table::Symbol,
 };
 
 #[derive(Clap)]
@@ -68,26 +70,24 @@ fn main() -> anyhow::Result<()> {
         let fun_ir = ir::trans_items(ast_tree, &mut ctx);
 
         if opts.emit.as_deref() == Some("ir") {
-            for (name, ir_vec) in fun_ir {
-                writeln!(
-                    output,
-                    "{}: {}",
-                    ctx.sym_table.name_of(name).unwrap(),
-                    ctx.sym_table.ty_of(name).unwrap()
-                )?;
-                writeln!(output, "{}", ir_vec)?;
-            }
+            display_fun_ir(&mut output, fun_ir, &mut ctx)?;
             break;
         }
 
-        ty::ty_check(todo!("&ir_vec"), &mut ctx);
+        for (fun, ir_vec) in &fun_ir {
+            ty::ty_check(*fun, ir_vec, &mut ctx);
+        }
 
-        let ir_graph = IrGraph::from_ir_vec(todo!("ir_vec"));
+        let ir_graph = fun_ir
+            .into_iter()
+            .map(|(fun, ir_vec)| (fun, IrGraph::from_ir_vec(ir_vec)));
 
         if opts.emit.as_deref() == Some("mir") {
-            writeln!(output, "{}", ir_graph)?;
+            display_fun_ir(&mut output, ir_graph, &mut ctx)?;
             break;
         }
+
+        let ir_graph = todo!();
 
         if opts.emit.as_deref() == Some("llvm") {
             llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
@@ -103,6 +103,23 @@ fn main() -> anyhow::Result<()> {
         llvm::emit_obj(ir_graph, &out_path, ctx);
 
         break;
+    }
+    Ok(())
+}
+
+fn display_fun_ir(
+    output: &mut Box<dyn Write>,
+    fun_ir: impl IntoIterator<Item = (Symbol, impl Display)>,
+    ctx: &mut Context,
+) -> std::io::Result<()> {
+    for (fun, ir_vec) in fun_ir {
+        writeln!(
+            output,
+            "{}: {}",
+            ctx.sym_table.name_of(fun).unwrap(),
+            ctx.sym_table.ty_of(fun).unwrap()
+        )?;
+        writeln!(output, "{}", ir_vec)?;
     }
     Ok(())
 }

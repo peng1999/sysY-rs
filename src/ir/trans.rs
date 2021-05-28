@@ -1,13 +1,15 @@
 use either::{Either, Left, Right};
 
-use super::{BinaryOp, BranchOp, UnaryOp, Value};
 use crate::{
-    ast::{Expr, ExprKind, FuncHead, Item, Stmt, Ty},
+    ast::{Expr, ExprKind, FuncHead, Item, Stmt},
     context::Context,
     error::LogResult,
     ir::{IrVec, OpArg},
     sym_table::Symbol,
+    ty::Ty,
 };
+
+use super::{BinaryOp, BranchOp, UnaryOp, Value};
 
 /// Return a `Right(Value)`, or `Left(Expr)` if `expr` is not a atom.
 fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Expr, Value> {
@@ -43,6 +45,7 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
 }
 
 /// Translate a expr when result is unknown or unneeded.
+#[must_use]
 fn trans_expr_place(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpArg {
     match atom_to_value(expr, ctx) {
         Right(val) => UnaryOp::Assign.with_arg(val),
@@ -117,7 +120,8 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
             _ => todo!(),
         },
         Expr(expr) => {
-            trans_expr_place(expr, ir_vec, ctx);
+            let arg = trans_expr_place(expr, ir_vec, ctx);
+            ir_vec.push(arg.with_result(None));
         }
         Block(inner) => {
             ctx.sym_begin_scope();
@@ -148,7 +152,7 @@ fn trans_stmts(stmts: Vec<Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
 fn register_func(func_head: FuncHead, ctx: &mut Context) -> Symbol {
     let name = ctx.interner.resolve(func_head.name).unwrap().to_string();
     let param_ty = func_head.param.into_iter().map(|(ty, _)| ty).collect();
-    let fun_ty = Ty::Fun(param_ty, func_head.ret_ty.map(Box::new));
+    let fun_ty = Ty::Fun(param_ty, Box::new(func_head.ret_ty));
 
     let fun_sym = ctx.sym_insert_const(func_head.name).unwrap_or_log(ctx);
     ctx.sym_table.ty_assert_with_name(fun_sym, fun_ty, name);

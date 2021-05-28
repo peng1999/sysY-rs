@@ -1,11 +1,6 @@
-use std::{
-    fmt::{Display, Formatter},
-    ops::Deref,
-};
+use std::ops::Deref;
 
-use itertools::Itertools;
-
-use crate::context::IString;
+use crate::{context::IString, ty::Ty};
 
 #[derive(Debug)]
 pub struct Spanned<T> {
@@ -47,7 +42,7 @@ pub enum Item {
 #[derive(Debug)]
 pub struct FuncHead {
     pub name: IString,
-    pub ret_ty: Option<Ty>,
+    pub ret_ty: Ty,
     pub param: Vec<(Ty, IString)>,
 }
 
@@ -62,14 +57,6 @@ pub enum Stmt {
     Return(Option<Expr>),
     Break,
     Empty,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Ty {
-    Int,
-    Bool,
-    Array(Box<Ty>, i32),
-    Fun(Vec<Ty>, Option<Box<Ty>>),
 }
 
 pub type Expr = Spanned<ExprKind>;
@@ -107,22 +94,4 @@ pub enum UnOp {
     Pos,
     Neg,
     Not,
-}
-
-impl Display for Ty {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Ty::Int => write!(fmt, "int"),
-            Ty::Bool => write!(fmt, "bool"),
-            Ty::Array(ty, cnt) => write!(fmt, "{}[{}]", ty, cnt),
-            Ty::Fun(param, ret) => {
-                if let Some(ty) = ret {
-                    write!(fmt, "{}", ty)?;
-                } else {
-                    write!(fmt, "void")?;
-                }
-                write!(fmt, "({})", param.iter().join(", "))
-            }
-        }
-    }
 }

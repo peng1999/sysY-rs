@@ -3,10 +3,10 @@ use std::{collections::HashMap, process::exit};
 use string_interner::StringInterner;
 
 use crate::{
-    ast::Ty,
     error::{LineColLookup, SymbolRedefError},
     ir::Label,
     sym_table::{SymTable, Symbol},
+    ty::Ty,
 };
 
 #[derive(Debug)]

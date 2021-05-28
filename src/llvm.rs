@@ -12,10 +12,10 @@ use inkwell::{
 };
 
 use crate::{
-    ast::Ty,
     context::Context as QContext,
     ir::{self, BranchOp, IrGraph, Label, Quaruple},
     sym_table::{SymTable, Symbol},
+    ty::Ty,
 };
 
 struct Context<'a> {

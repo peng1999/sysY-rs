@@ -1,14 +1,51 @@
+use std::fmt::{Display, Formatter};
+
+use itertools::Itertools;
+
 use crate::{
-    ast::Ty,
     context::Context,
     ir::{self, Ir, IrVec, Value},
+    sym_table::Symbol,
 };
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ty {
+    Int,
+    Bool,
+    Array(Box<Ty>, i32),
+    Void,
+    Fun(Vec<Ty>, Box<Ty>),
+}
+
+impl Display for Ty {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Ty::Int => write!(fmt, "int"),
+            Ty::Bool => write!(fmt, "bool"),
+            Ty::Array(ty, cnt) => write!(fmt, "{}[{}]", ty, cnt),
+            Ty::Void => write!(fmt, "void"),
+            Ty::Fun(param, ret) => {
+                write!(fmt, "{}({})", ret, param.iter().join(", "))
+            }
+        }
+    }
+}
+
+impl Ty {
+    fn fun_ret_ty(&self) -> Option<Ty> {
+        match self {
+            Ty::Fun(_, ret_ty) => Some(*ret_ty.clone()),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 enum Op {
     Binary(ir::BinaryOp),
     Unary(ir::UnaryOp),
     Cond,
+    Call,
 }
 
 impl From<ir::UnaryOp> for Op {
@@ -38,6 +75,10 @@ fn ty_check_op(op: Op, args: &[Value], ctx: &Context) -> Ty {
         (Op::Binary(BinaryOp::Eq | Ne), [ty_l, ty_r]) if ty_l == ty_r => Ty::Bool,
         // if bool
         (Op::Cond, &[Ty::Bool]) => Ty::Bool,
+        // fun(args...) -> ret
+        (Op::Call, &[Ty::Fun(ref arg_ty, ref ret_ty), ref tys @ ..]) if arg_ty == tys => {
+            *ret_ty.clone()
+        }
         _ => panic!("{:?} are not compatible with {:?}", args, op),
     }
 }
@@ -51,23 +92,34 @@ fn ty_from_value(value: Value, ctx: &Context) -> Ty {
 }
 
 /// 执行类型检查
-pub fn ty_check(ir_vec: &IrVec, ctx: &mut Context) {
+pub fn ty_check(fun: Symbol, ir_vec: &IrVec, ctx: &mut Context) {
     use ir::{BranchOp, OpArg};
 
     for ir in &ir_vec.ir_list {
         match ir {
             Ir::Quaruple(quaruple) => {
+                // 先检查调用正确
                 let result_ty = match quaruple.op {
                     OpArg::Unary { op, arg } => ty_check_op(op.into(), &[arg], ctx),
                     OpArg::Binary { op, arg1, arg2 } => ty_check_op(op.into(), &[arg1, arg2], ctx),
-                    OpArg::Call { .. } => todo!("fun type check"),
+                    OpArg::Call { fun, ref args } => {
+                        ty_check_op(Op::Call, &[&[fun], args.as_slice()].concat(), ctx)
+                    }
                 };
+                // 再检查返回值是否跟变量匹配
                 if let Some(result) = quaruple.result {
                     ctx.sym_table.ty_assert(result, result_ty);
                 }
             }
             Ir::Branch(BranchOp::CondGoto(value, ..)) => {
                 ty_check_op(Op::Cond, &[*value], ctx);
+            }
+            Ir::Branch(BranchOp::Ret(value)) => {
+                let ty = ty_from_value(*value, ctx);
+                let ret_ty = ctx.sym_table.ty_of(fun).unwrap().fun_ret_ty().unwrap();
+                if ty != ret_ty {
+                    panic!("expect to return {}, found {}", ret_ty, ty);
+                }
             }
             _ => {} // Just pass
         }

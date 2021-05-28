@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use crate::ast;
 use crate::context::{self, Context};
+use crate::ty::Ty;
 
 grammar(ctx: &mut Context<'input>);
 
@@ -28,7 +29,7 @@ FuncHead: ast::FuncHead = {
         let void = ctx.interner.get_or_intern_static("void");
         let r = ctx.interner.get_or_intern(r);
         let n = ctx.interner.get_or_intern(n);
-        let r_ty = (r != void).then(|| ctx.get_ty(r));
+        let r_ty = if r != void { ctx.get_ty(r) } else { Ty::Void };
         if let Some(e) = e {
             v.push(e);
         }
@@ -40,7 +41,7 @@ FuncHead: ast::FuncHead = {
     }
 }
 
-TypedName: (ast::Ty, context::IString) = {
+TypedName: (Ty, context::IString) = {
     <t:Ident> <n:Ident> => {
         let sym_t = ctx.interner.get_or_intern(t);
         let sym_n = ctx.interner.get_or_intern(n);

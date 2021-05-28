@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ast::Ty;
+use crate::ty::Ty;
 
 /// The unique identifier of a register
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -11,7 +11,7 @@ pub struct SymTable {
     next_id: usize,
     non_const_set: HashSet<Symbol>,
     ty_table: HashMap<Symbol, Ty>,
-    sym_name: HashMap<Symbol, String>
+    sym_name: HashMap<Symbol, String>,
 }
 
 #[derive(Debug)]

@@ -21,7 +21,7 @@ pub enum OpArg {
     Call {
         fun: Value,
         args: Vec<Value>,
-    }
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
