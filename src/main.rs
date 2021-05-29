@@ -1,5 +1,6 @@
 #![feature(map_try_insert)]
 #![feature(result_cloned)]
+#![feature(label_break_value)]
 #![allow(clippy::new_without_default)]
 
 #[macro_use]
@@ -24,7 +25,7 @@ use clap::{AppSettings, Clap};
 use crate::{
     context::Context,
     error::LogResult,
-    ir::{IrGraph, IrVec},
+    ir::IrGraph,
     sym_table::Symbol,
 };
 
@@ -57,21 +58,20 @@ fn main() -> anyhow::Result<()> {
             |f| Box::new(f) as Box<dyn Write>,
         );
 
-    #[allow(clippy::never_loop)] // Just want to use the `break`
-    loop {
+    'exit: {
         let mut ctx = context::Context::new(&source);
         let parser = syntax::ProgParser::new();
         let ast_tree = parser.parse(&mut ctx, &source).unwrap_or_log(&mut ctx);
         if opts.emit.as_deref() == Some("ast") {
             writeln!(output, "{:#?}", ast_tree)?;
-            break;
+            break 'exit;
         }
 
         let fun_ir = ir::trans_items(ast_tree, &mut ctx);
 
         if opts.emit.as_deref() == Some("ir") {
             display_fun_ir(&mut output, fun_ir, &mut ctx)?;
-            break;
+            break 'exit;
         }
 
         for (fun, ir_vec) in &fun_ir {
@@ -84,14 +84,14 @@ fn main() -> anyhow::Result<()> {
 
         if opts.emit.as_deref() == Some("mir") {
             display_fun_ir(&mut output, ir_graph, &mut ctx)?;
-            break;
+            break 'exit;
         }
 
         let ir_graph = todo!();
 
         if opts.emit.as_deref() == Some("llvm") {
             llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
-            break;
+            break 'exit;
         }
 
         let mut file = opts.input_file;
@@ -101,8 +101,6 @@ fn main() -> anyhow::Result<()> {
         });
 
         llvm::emit_obj(ir_graph, &out_path, ctx);
-
-        break;
     }
     Ok(())
 }
