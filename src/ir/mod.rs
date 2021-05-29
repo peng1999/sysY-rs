@@ -141,30 +141,8 @@ impl IrGraph {
             .map(|(_, groups)| groups)
             .enumerate()
             .map(|(idx, groups)| {
-                let mut quaruples = vec![];
+                let (quaruples, branch) = transform_label(groups, &mut label_map);
 
-                let mut iter = groups.into_iter();
-                let branch = loop {
-                    match iter.next() {
-                        Some(Ir::Quaruple(quaruple)) => quaruples.push(quaruple),
-                        Some(Ir::Branch(op)) => {
-                            let exit = match op {
-                                BranchOp::Goto(label) => BranchOp::Goto(label_map[&label]),
-                                BranchOp::CondGoto(value, true_label, false_label) => {
-                                    BranchOp::CondGoto(
-                                        value,
-                                        label_map[&true_label],
-                                        label_map[&false_label],
-                                    )
-                                }
-                                ret @ BranchOp::Ret(_) => ret,
-                            };
-                            break Some(exit);
-                        }
-                        None => break None,
-                        _ => unreachable!(),
-                    }
-                };
                 let exit = branch.unwrap_or_else(|| BranchOp::Goto(block_order[idx + 1]));
                 (
                     block_order[idx],
@@ -181,4 +159,30 @@ impl IrGraph {
             block_order,
         }
     }
+}
+
+/// 将 Ir 按照 `label_map` 重新整理
+fn transform_label(
+    group: impl Iterator<Item = Ir>,
+    label_map: &mut HashMap<Label, Label>,
+) -> (Vec<Quaruple>, Option<BranchOp>) {
+    let mut quaruples = vec![];
+
+    for ir in group {
+        match ir {
+            Ir::Quaruple(quaruple) => quaruples.push(quaruple),
+            Ir::Branch(op) => {
+                let exit = match op {
+                    BranchOp::Goto(label) => BranchOp::Goto(label_map[&label]),
+                    BranchOp::CondGoto(value, true_label, false_label) => {
+                        BranchOp::CondGoto(value, label_map[&true_label], label_map[&false_label])
+                    }
+                    ret @ BranchOp::Ret(_) => ret,
+                };
+                return (quaruples, Some(exit));
+            }
+            _ => unreachable!(),
+        }
+    }
+    (quaruples, None)
 }
