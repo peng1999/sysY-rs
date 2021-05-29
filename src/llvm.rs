@@ -156,7 +156,7 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
         }
     };
     if let Some(reg) = quaruple.result {
-        store_value(v.into(), reg, ctx);
+        store_value(v, reg, ctx);
     }
 }
 
