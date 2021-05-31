@@ -65,7 +65,6 @@ impl SymTable {
     /// 给符号添加类型和名字（用于链接）
     pub fn ty_assert_with_name(&mut self, sym: Symbol, ty: Ty, name: String) {
         self.ty_assert(sym, ty);
-        // TODO: 判断相等
         self.sym_name.insert(sym, name);
     }
 
@@ -76,4 +75,29 @@ impl SymTable {
     pub fn name_of(&self, sym: Symbol) -> Option<&str> {
         self.sym_name.get(&sym).map(String::as_ref)
     }
+}
+
+#[test]
+fn sym_table_ty_assert_with_name() {
+    let mut sym_table = SymTable::new();
+    let sym = sym_table.gen_const_symbol();
+    let ty = Ty::Fun(vec![], Box::new(Ty::Void));
+
+    sym_table.ty_assert_with_name(sym, ty.clone(), "abc".to_string());
+    sym_table.ty_assert_with_name(sym, ty.clone(), "abc".to_string());
+
+    assert_eq!(sym_table.ty_of(sym), Some(ty.clone()));
+    assert_eq!(sym_table.name_of(sym), Some("abc"));
+}
+
+#[test]
+#[should_panic]
+fn sym_table_ty_assert_with_name_imcompatible() {
+    let mut sym_table = SymTable::new();
+    let sym = sym_table.gen_const_symbol();
+    let t1 = Ty::Fun(vec![], Box::new(Ty::Void));
+    let t2 = Ty::Fun(vec![], Box::new(Ty::Int));
+
+    sym_table.ty_assert_with_name(sym, t1, "abc".to_string());
+    sym_table.ty_assert_with_name(sym, t2, "abc".to_string());
 }
