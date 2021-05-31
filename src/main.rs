@@ -22,12 +22,7 @@ use std::{fmt::Display, fs, io::Write, path::PathBuf};
 
 use clap::{AppSettings, Clap};
 
-use crate::{
-    context::Context,
-    error::LogResult,
-    ir::IrGraph,
-    sym_table::Symbol,
-};
+use crate::{context::Context, error::LogResult, ir::IrGraph, sym_table::Symbol};
 
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
@@ -74,20 +69,20 @@ fn main() -> anyhow::Result<()> {
             break 'exit;
         }
 
-        for (fun, ir_vec) in &fun_ir {
-            ty::ty_check(*fun, ir_vec, &mut ctx);
-        }
+        fun_ir
+            .iter()
+            .filter_map(|(fun, ir_vec)| ir_vec.as_ref().map(|v| (fun, v)))
+            .for_each(|(fun, ir_vec)| ty::ty_check(*fun, ir_vec, &mut ctx));
 
         let ir_graph = fun_ir
             .into_iter()
-            .map(|(fun, ir_vec)| (fun, IrGraph::from_ir_vec(ir_vec)));
+            .map(|(fun, ir_vec)| (fun, ir_vec.map(IrGraph::from_ir_vec)))
+            .collect::<Vec<_>>();
 
         if opts.emit.as_deref() == Some("mir") {
             display_fun_ir(&mut output, ir_graph, &mut ctx)?;
             break 'exit;
         }
-
-        let ir_graph = todo!();
 
         if opts.emit.as_deref() == Some("llvm") {
             llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
@@ -107,7 +102,7 @@ fn main() -> anyhow::Result<()> {
 
 fn display_fun_ir(
     output: &mut Box<dyn Write>,
-    fun_ir: impl IntoIterator<Item = (Symbol, impl Display)>,
+    fun_ir: impl IntoIterator<Item = (Symbol, Option<impl Display>)>,
     ctx: &mut Context,
 ) -> std::io::Result<()> {
     for (fun, ir_vec) in fun_ir {
@@ -117,7 +112,9 @@ fn display_fun_ir(
             ctx.sym_table.name_of(fun).unwrap(),
             ctx.sym_table.ty_of(fun).unwrap()
         )?;
-        writeln!(output, "{}", ir_vec)?;
+        if let Some(ir_vec) = ir_vec {
+            writeln!(output, "{}", ir_vec)?;
+        }
     }
     Ok(())
 }

@@ -6,7 +6,7 @@ use inkwell::{
     context::Context as LLVMContext,
     module::Module,
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
-    types::IntType,
+    types::{AnyType, AnyTypeEnum, BasicTypeEnum, FunctionType},
     values::{BasicValueEnum, FunctionValue, PointerValue},
     IntPredicate, OptimizationLevel,
 };
@@ -42,18 +42,54 @@ impl<'a> Context<'a> {
     }
 }
 
-fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> IntType<'a> {
+trait AnyTypeEnumExt<'ctx>: AnyType<'ctx>
+where
+    Self: Sized,
+{
+    fn fn_type(
+        &self,
+        param_types: &[BasicTypeEnum<'ctx>],
+        is_var_args: bool,
+    ) -> FunctionType<'ctx> {
+        match self.as_any_type_enum() {
+            AnyTypeEnum::IntType(ty) => ty.fn_type(param_types, is_var_args),
+            AnyTypeEnum::VoidType(ty) => ty.fn_type(param_types, is_var_args),
+            o => todo!("{:?}", o),
+        }
+    }
+}
+
+impl<'a> AnyTypeEnumExt<'a> for AnyTypeEnum<'a> {}
+
+fn llvm_basic_type<'a>(ty: Ty, ctx: &Context<'a>) -> BasicTypeEnum<'a> {
     let llctx = ctx.ctx;
     match ty {
-        Ty::Int => llctx.i32_type(),
-        Ty::Bool => llctx.bool_type(),
-        _ => todo!(),
+        Ty::Int => llctx.i32_type().into(),
+        Ty::Bool => llctx.bool_type().into(),
+        Ty::Void | Ty::Fun(_, _) => panic!("{:?}", ty),
+        o => unimplemented!("{}", o),
+    }
+}
+
+fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> AnyTypeEnum<'a> {
+    let llctx = ctx.ctx;
+    match ty {
+        Ty::Int | Ty::Bool => llvm_basic_type(ty, ctx).as_any_type_enum(),
+        Ty::Void => llctx.void_type().into(),
+        Ty::Fun(arg_ty, ret_ty) => {
+            let args = arg_ty
+                .into_iter()
+                .map(|ty| llvm_basic_type(ty, ctx))
+                .collect::<Vec<_>>();
+            llvm_type(*ret_ty, ctx).fn_type(&args, false).into()
+        }
+        o => todo!("todo: {}", o),
     }
 }
 
 /// Get a `PointerValue` from a non-const `Ident` in ir.
 fn get_pointer<'a>(ident: Symbol, ctx: &mut Context<'a>) -> PointerValue<'a> {
-    let sym_type = llvm_type(ctx.sym_table.ty_of(ident).unwrap(), ctx);
+    let sym_type = llvm_basic_type(ctx.sym_table.ty_of(ident).unwrap(), ctx);
     let builder = &ctx.builder;
     *ctx.pvar
         .entry(ident)
@@ -197,20 +233,24 @@ fn build_function(function: FunctionValue, mut ir_graph: IrGraph, ctx: &mut Cont
     }
 }
 
-fn ir_graph_to_module<'a>(ir_graph: IrGraph, ctx: &mut Context<'a>) -> Module<'a> {
+fn ir_graph_to_module<'a>(
+    ir_graph: Vec<(Symbol, Option<IrGraph>)>,
+    ctx: &mut Context<'a>,
+) -> Module<'a> {
     let llctx = ctx.ctx;
-    let module = llctx.create_module("main");
+    let module = llctx.create_module("program");
 
-    let i32_type = llctx.i32_type();
-
-    // // getchar()
-    // let fn_getchar_type = i32_type.fn_type(&[], false);
-    // let fn_getchar = module.add_function("getchar", fn_getchar_type, Some(Linkage::External));
-
-    // main()
-    let fn_main_type = i32_type.fn_type(&[], false);
-    let fn_main = module.add_function("main", fn_main_type, None);
-    build_function(fn_main, ir_graph, ctx);
+    for (fun_sym, ir_graph) in ir_graph {
+        let name = ctx.sym_table.name_of(fun_sym).unwrap();
+        let fun_ty = llvm_type(ctx.sym_table.ty_of(fun_sym).unwrap(), ctx).into_function_type();
+        // // getchar()
+        // let fn_getchar_type = i32_type.fn_type(&[], false);
+        // let fn_getchar = module.add_function("getchar", fn_getchar_type, Some(Linkage::External));
+        let fun = module.add_function(name, fun_ty, None);
+        if let Some(ir_graph) = ir_graph {
+            build_function(fun, ir_graph, ctx);
+        }
+    }
 
     // let a1 = builder
     //     .build_call(fn_getchar, &[], "")
@@ -249,7 +289,11 @@ fn emit_obj_file(module: Module, path: &Path) {
         .unwrap();
 }
 
-pub fn emit_llvm_ir(ir_graph: IrGraph, file: &mut dyn Write, qctx: QContext) -> anyhow::Result<()> {
+pub fn emit_llvm_ir(
+    ir_graph: Vec<(Symbol, Option<IrGraph>)>,
+    file: &mut dyn Write,
+    qctx: QContext,
+) -> anyhow::Result<()> {
     let llctx = LLVMContext::create();
     let mut ctx = Context::new(&llctx, qctx);
 
@@ -260,7 +304,7 @@ pub fn emit_llvm_ir(ir_graph: IrGraph, file: &mut dyn Write, qctx: QContext) -> 
     Ok(())
 }
 
-pub fn emit_obj(ir_graph: IrGraph, path: &Path, qctx: QContext) {
+pub fn emit_obj(ir_graph: Vec<(Symbol, Option<IrGraph>)>, path: &Path, qctx: QContext) {
     let llctx = LLVMContext::create();
     let mut ctx = Context::new(&llctx, qctx);
 

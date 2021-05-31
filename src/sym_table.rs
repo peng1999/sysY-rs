@@ -65,6 +65,7 @@ impl SymTable {
     /// 给符号添加类型和名字（用于链接）
     pub fn ty_assert_with_name(&mut self, sym: Symbol, ty: Ty, name: String) {
         self.ty_assert(sym, ty);
+        // TODO: 判断相等
         self.sym_name.insert(sym, name);
     }
 

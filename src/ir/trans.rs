@@ -154,19 +154,20 @@ fn register_func(func_head: FuncHead, ctx: &mut Context) -> Symbol {
     let param_ty = func_head.param.into_iter().map(|(ty, _)| ty).collect();
     let fun_ty = Ty::Fun(param_ty, Box::new(func_head.ret_ty));
 
+    // TODO: 可以重复声明
     let fun_sym = ctx.sym_insert_const(func_head.name).unwrap_or_log(ctx);
     ctx.sym_table.ty_assert_with_name(fun_sym, fun_ty, name);
 
     fun_sym
 }
 
-pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, IrVec)> {
-    let mut fun_ir = Vec::with_capacity(items.len());
+pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<IrVec>)> {
     // 进入全局作用域
     ctx.sym_begin_scope();
 
-    for item in items {
-        match item {
+    items
+        .into_iter()
+        .map(|item| match item {
             Item::FuncDef(func_head, stmts) => {
                 let param = func_head.param.clone();
                 let fun_sym = register_func(func_head, ctx);
@@ -180,12 +181,12 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, IrVec)> 
                 trans_stmts(stmts, &mut ir_vec, ctx);
                 ctx.sym_end_scope();
 
-                fun_ir.push((fun_sym, ir_vec));
+                (fun_sym, Some(ir_vec))
             }
             Item::FuncDecl(func_head) => {
-                register_func(func_head, ctx);
+                let fun_sym = register_func(func_head, ctx);
+                (fun_sym, None)
             }
-        }
-    }
-    fun_ir
+        })
+        .collect()
 }
