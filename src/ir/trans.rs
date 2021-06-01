@@ -154,8 +154,9 @@ fn register_func(func_head: FuncHead, ctx: &mut Context) -> Symbol {
     let param_ty = func_head.param.into_iter().map(|(ty, _)| ty).collect();
     let fun_ty = Ty::Fun(param_ty, Box::new(func_head.ret_ty));
 
-    // TODO: 可以重复声明
-    let fun_sym = ctx.sym_insert_const(func_head.name).unwrap_or_log(ctx);
+    let fun_sym = ctx
+        .sym_insert_const(func_head.name)
+        .unwrap_or_else(|e| e.get_sym());
     ctx.sym_table.ty_assert_with_name(fun_sym, fun_ty, name);
 
     fun_sym

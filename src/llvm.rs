@@ -246,7 +246,9 @@ fn ir_graph_to_module<'a>(
         // // getchar()
         // let fn_getchar_type = i32_type.fn_type(&[], false);
         // let fn_getchar = module.add_function("getchar", fn_getchar_type, Some(Linkage::External));
-        let fun = module.add_function(name, fun_ty, None);
+        let fun = module
+            .get_function(name)
+            .unwrap_or_else(|| module.add_function(name, fun_ty, None));
         if let Some(ir_graph) = ir_graph {
             build_function(fun, ir_graph, ctx);
         }

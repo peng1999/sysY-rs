@@ -55,7 +55,7 @@ impl Context<'_> {
         self.var_lookup.pop();
     }
 
-    pub fn sym_insert(&mut self, sym: IString) -> Result<Symbol, SymbolRedefError> {
+    pub fn sym_insert(&mut self, ident: IString) -> Result<Symbol, SymbolRedefError> {
         let lookup = self
             .var_lookup
             .last_mut()
@@ -63,12 +63,12 @@ impl Context<'_> {
 
         let id = self.sym_table.gen_var_symbol();
         lookup
-            .try_insert(sym, id)
-            .map_err(|_| SymbolRedefError::new(sym))
+            .try_insert(ident, id)
+            .map_err(|e| SymbolRedefError::new(ident, e.value))
             .cloned()
     }
 
-    pub fn sym_insert_const(&mut self, sym: IString) -> Result<Symbol, SymbolRedefError> {
+    pub fn sym_insert_const(&mut self, ident: IString) -> Result<Symbol, SymbolRedefError> {
         let lookup = self
             .var_lookup
             .last_mut()
@@ -76,8 +76,8 @@ impl Context<'_> {
 
         let id = self.sym_table.gen_const_symbol();
         lookup
-            .try_insert(sym, id)
-            .map_err(|_| SymbolRedefError::new(sym))
+            .try_insert(ident, id)
+            .map_err(|e| SymbolRedefError::new(ident, e.value))
             .cloned()
     }
 

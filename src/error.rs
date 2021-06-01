@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, process::exit};
 
 use lalrpop_util::{lexer::Token, ParseError};
 
-use crate::{ast::IString, context::Context};
+use crate::{ast::IString, context::Context, sym_table::Symbol};
 
 /// 用于可以进行输出的错误
 pub trait LogError {
@@ -24,11 +24,16 @@ impl<T, E: LogError> LogResult for Result<T, E> {
 
 pub struct SymbolRedefError {
     name: IString,
+    sym: Symbol,
 }
 
 impl SymbolRedefError {
-    pub fn new(name: IString) -> SymbolRedefError {
-        SymbolRedefError { name }
+    pub fn new(name: IString, sym: Symbol) -> SymbolRedefError {
+        SymbolRedefError { name, sym }
+    }
+
+    pub fn get_sym(&self) -> Symbol {
+        self.sym
     }
 }
 
