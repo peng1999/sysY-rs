@@ -25,6 +25,7 @@ struct Context<'a> {
     pvar: HashMap<Symbol, PointerValue<'a>>,
     ivar: HashMap<Symbol, BasicValueEnum<'a>>,
     label_block: HashMap<Label, BasicBlock<'a>>,
+    sym_func: HashMap<Symbol, FunctionValue<'a>>,
 
     sym_table: SymTable,
 }
@@ -37,6 +38,7 @@ impl<'a> Context<'a> {
             pvar: HashMap::new(),
             ivar: HashMap::new(),
             label_block: HashMap::new(),
+            sym_func: HashMap::new(),
             sym_table: qctx.sym_table,
         }
     }
@@ -186,9 +188,16 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
             .into()
         }
         OpArg::Call { fun, args } => {
-            let fun = fun.unwrap_reg();
-            //ctx.builder.build_call();
-            todo!("call llvm gen")
+            let fun = ctx.sym_func[&fun.unwrap_reg()];
+            let args = args
+                .into_iter()
+                .map(|arg| get_basic_value(arg, ctx))
+                .collect::<Vec<_>>();
+            ctx.builder
+                .build_call(fun, &args, "")
+                .try_as_basic_value()
+                .left()
+                .unwrap()
         }
     };
     if let Some(reg) = quaruple.result {
@@ -243,25 +252,15 @@ fn ir_graph_to_module<'a>(
     for (fun_sym, ir_graph) in ir_graph {
         let name = ctx.sym_table.name_of(fun_sym).unwrap();
         let fun_ty = llvm_type(ctx.sym_table.ty_of(fun_sym).unwrap(), ctx).into_function_type();
-        // // getchar()
-        // let fn_getchar_type = i32_type.fn_type(&[], false);
-        // let fn_getchar = module.add_function("getchar", fn_getchar_type, Some(Linkage::External));
+
         let fun = module
             .get_function(name)
             .unwrap_or_else(|| module.add_function(name, fun_ty, None));
+        ctx.sym_func.entry(fun_sym).or_insert(fun);
         if let Some(ir_graph) = ir_graph {
             build_function(fun, ir_graph, ctx);
         }
     }
-
-    // let a1 = builder
-    //     .build_call(fn_getchar, &[], "")
-    //     .try_as_basic_value()
-    //     .left()
-    //     .unwrap()
-    //     .into_int_value();
-    // let v1 = builder.build_int_add(a1, i32_type.const_int(0, false), "");
-    // builder.build_return(Some(&v1));
 
     module
 }

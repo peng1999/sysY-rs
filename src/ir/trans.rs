@@ -176,6 +176,7 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
                 let mut ir_vec = IrVec::new(ctx.next_label());
                 ctx.sym_begin_scope();
                 for (ty, name) in param {
+                    // TODO: 实现参数
                     let sym = ctx.sym_insert(name).unwrap_or_log(ctx);
                     ctx.sym_table.ty_assert(sym, ty);
                 }
