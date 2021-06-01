@@ -25,7 +25,7 @@ struct Context<'a> {
     pvar: HashMap<Symbol, PointerValue<'a>>,
     ivar: HashMap<Symbol, BasicValueEnum<'a>>,
     label_block: HashMap<Label, BasicBlock<'a>>,
-    sym_func: HashMap<Symbol, FunctionValue<'a>>,
+    sym_fn: HashMap<Symbol, FunctionValue<'a>>,
 
     sym_table: SymTable,
 }
@@ -38,7 +38,7 @@ impl<'a> Context<'a> {
             pvar: HashMap::new(),
             ivar: HashMap::new(),
             label_block: HashMap::new(),
-            sym_func: HashMap::new(),
+            sym_fn: HashMap::new(),
             sym_table: qctx.sym_table,
         }
     }
@@ -68,7 +68,7 @@ fn llvm_basic_type<'a>(ty: Ty, ctx: &Context<'a>) -> BasicTypeEnum<'a> {
     match ty {
         Ty::Int => llctx.i32_type().into(),
         Ty::Bool => llctx.bool_type().into(),
-        Ty::Void | Ty::Fun(_, _) => panic!("{:?}", ty),
+        Ty::Void | Ty::Fn(_, _) => panic!("{:?}", ty),
         o => unimplemented!("{}", o),
     }
 }
@@ -78,7 +78,7 @@ fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> AnyTypeEnum<'a> {
     match ty {
         Ty::Int | Ty::Bool => llvm_basic_type(ty, ctx).as_any_type_enum(),
         Ty::Void => llctx.void_type().into(),
-        Ty::Fun(arg_ty, ret_ty) => {
+        Ty::Fn(arg_ty, ret_ty) => {
             let args = arg_ty
                 .into_iter()
                 .map(|ty| llvm_basic_type(ty, ctx))
@@ -187,14 +187,14 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
             }
             .into()
         }
-        OpArg::Call { fun, args } => {
-            let fun = ctx.sym_func[&fun.unwrap_reg()];
+        OpArg::Call { fn_val, args } => {
+            let fn_sym = ctx.sym_fn[&fn_val.unwrap_reg()];
             let args = args
                 .into_iter()
                 .map(|arg| get_basic_value(arg, ctx))
                 .collect::<Vec<_>>();
             ctx.builder
-                .build_call(fun, &args, "")
+                .build_call(fn_sym, &args, "")
                 .try_as_basic_value()
                 .left()
                 .unwrap()
@@ -253,12 +253,12 @@ fn ir_graph_to_module<'a>(
         let name = ctx.sym_table.name_of(fun_sym).unwrap();
         let fun_ty = llvm_type(ctx.sym_table.ty_of(fun_sym).unwrap(), ctx).into_function_type();
 
-        let fun = module
+        let fn_sym = module
             .get_function(name)
             .unwrap_or_else(|| module.add_function(name, fun_ty, None));
-        ctx.sym_func.entry(fun_sym).or_insert(fun);
+        ctx.sym_fn.entry(fun_sym).or_insert(fn_sym);
         if let Some(ir_graph) = ir_graph {
-            build_function(fun, ir_graph, ctx);
+            build_function(fn_sym, ir_graph, ctx);
         }
     }
 

@@ -38,12 +38,12 @@ impl<T> Spanned<T> {
 
 #[derive(Debug)]
 pub enum Item {
-    FuncDef(FuncHead, Vec<Stmt>),
-    FuncDecl(FuncHead),
+    FnDef(FnHead, Vec<Stmt>),
+    FnDecl(FnHead),
 }
 
 #[derive(Debug)]
-pub struct FuncHead {
+pub struct FnHead {
     pub name: IString,
     pub ret_ty: Ty,
     pub param: Vec<(Ty, IString)>,

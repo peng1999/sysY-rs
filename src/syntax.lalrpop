@@ -20,11 +20,11 @@ match {
 pub Prog = <Item*>;
 
 Item: ast::Item = {
-    <f:FuncHead> "{" <b:Stmt*> "}" => ast::Item::FuncDef(f, b),
-    <FuncHead> ";" => ast::Item::FuncDecl(<>),
+    <f:FnHead> "{" <b:Stmt*> "}" => ast::Item::FnDef(f, b),
+    <FnHead> ";" => ast::Item::FnDecl(<>),
 }
 
-FuncHead: ast::FuncHead = {
+FnHead: ast::FnHead = {
     <r:Ident> <n:Ident> "(" <mut v:(<TypedName> ",")*> <e:TypedName?> ")" => {
         let void = ctx.interner.get_or_intern_static("void");
         let r = ctx.interner.get_or_intern(r);
@@ -33,7 +33,7 @@ FuncHead: ast::FuncHead = {
         if let Some(e) = e {
             v.push(e);
         }
-        ast::FuncHead {
+        ast::FnHead {
             name: n,
             ret_ty: r_ty,
             param: v,

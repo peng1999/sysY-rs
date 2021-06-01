@@ -19,7 +19,7 @@ pub enum OpArg {
         arg2: Value,
     },
     Call {
-        fun: Value,
+        fn_val: Value,
         args: Vec<Value>,
     },
 }
@@ -44,8 +44,8 @@ pub enum BinaryOp {
 }
 
 impl OpArg {
-    pub fn call(fun: Value, args: Vec<Value>) -> OpArg {
-        OpArg::Call { fun, args }
+    pub fn call(fn_val: Value, args: Vec<Value>) -> OpArg {
+        OpArg::Call { fn_val, args }
     }
     pub fn with_result(self, result: Option<Symbol>) -> Quaruple {
         Quaruple { result, op: self }

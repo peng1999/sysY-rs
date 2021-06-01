@@ -1,7 +1,7 @@
 use either::{Either, Left, Right};
 
 use crate::{
-    ast::{Expr, ExprKind, FuncHead, Item, Stmt},
+    ast::{Expr, ExprKind, FnHead, Item, Stmt},
     context::Context,
     error::LogResult,
     ir::{IrVec, OpArg},
@@ -31,8 +31,8 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
             let rval = trans_expr_val(rhs, ir_vec, ctx);
             BinaryOp::from_ast_op(op).with_arg(lval, rval)
         }
-        ExprKind::Call(fun, args) => {
-            let fun_val = trans_expr_val(fun, ir_vec, ctx);
+        ExprKind::Call(fn_sym, args) => {
+            let fun_val = trans_expr_val(fn_sym, ir_vec, ctx);
             let args_val = args
                 .into_iter()
                 .map(|e| trans_expr_val(e, ir_vec, ctx))
@@ -149,15 +149,15 @@ fn trans_stmts(stmts: Vec<Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
     }
 }
 
-fn register_func(func_head: FuncHead, ctx: &mut Context) -> Symbol {
-    let name = ctx.interner.resolve(func_head.name).unwrap().to_string();
-    let param_ty = func_head.param.into_iter().map(|(ty, _)| ty).collect();
-    let fun_ty = Ty::Fun(param_ty, Box::new(func_head.ret_ty));
+fn register_fn(fn_head: FnHead, ctx: &mut Context) -> Symbol {
+    let name = ctx.interner.resolve(fn_head.name).unwrap().to_string();
+    let param_ty = fn_head.param.into_iter().map(|(ty, _)| ty).collect();
+    let fn_ty = Ty::Fn(param_ty, Box::new(fn_head.ret_ty));
 
     let fun_sym = ctx
-        .sym_insert_const(func_head.name)
+        .sym_insert_const(fn_head.name)
         .unwrap_or_else(|e| e.get_sym());
-    ctx.sym_table.ty_assert_with_name(fun_sym, fun_ty, name);
+    ctx.sym_table.ty_assert_with_name(fun_sym, fn_ty, name);
 
     fun_sym
 }
@@ -169,9 +169,9 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
     items
         .into_iter()
         .map(|item| match item {
-            Item::FuncDef(func_head, stmts) => {
-                let param = func_head.param.clone();
-                let fun_sym = register_func(func_head, ctx);
+            Item::FnDef(fn_head, stmts) => {
+                let param = fn_head.param.clone();
+                let fn_sym = register_fn(fn_head, ctx);
 
                 let mut ir_vec = IrVec::new(ctx.next_label());
                 ctx.sym_begin_scope();
@@ -183,11 +183,11 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
                 trans_stmts(stmts, &mut ir_vec, ctx);
                 ctx.sym_end_scope();
 
-                (fun_sym, Some(ir_vec))
+                (fn_sym, Some(ir_vec))
             }
-            Item::FuncDecl(func_head) => {
-                let fun_sym = register_func(func_head, ctx);
-                (fun_sym, None)
+            Item::FnDecl(fn_head) => {
+                let fn_sym = register_fn(fn_head, ctx);
+                (fn_sym, None)
             }
         })
         .collect()

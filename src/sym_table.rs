@@ -15,7 +15,7 @@ pub struct SymTable {
 }
 
 #[derive(Debug)]
-pub struct FuncTable {
+pub struct FnTable {
     fn_decl: HashMap<Symbol, (Vec<Ty>, Ty)>,
 }
 
@@ -81,7 +81,7 @@ impl SymTable {
 fn sym_table_ty_assert_with_name() {
     let mut sym_table = SymTable::new();
     let sym = sym_table.gen_const_symbol();
-    let ty = Ty::Fun(vec![], Box::new(Ty::Void));
+    let ty = Ty::Fn(vec![], Box::new(Ty::Void));
 
     sym_table.ty_assert_with_name(sym, ty.clone(), "abc".to_string());
     sym_table.ty_assert_with_name(sym, ty.clone(), "abc".to_string());
@@ -95,8 +95,8 @@ fn sym_table_ty_assert_with_name() {
 fn sym_table_ty_assert_with_name_imcompatible() {
     let mut sym_table = SymTable::new();
     let sym = sym_table.gen_const_symbol();
-    let t1 = Ty::Fun(vec![], Box::new(Ty::Void));
-    let t2 = Ty::Fun(vec![], Box::new(Ty::Int));
+    let t1 = Ty::Fn(vec![], Box::new(Ty::Void));
+    let t2 = Ty::Fn(vec![], Box::new(Ty::Int));
 
     sym_table.ty_assert_with_name(sym, t1, "abc".to_string());
     sym_table.ty_assert_with_name(sym, t2, "abc".to_string());

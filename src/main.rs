@@ -71,12 +71,12 @@ fn main() -> anyhow::Result<()> {
 
         fun_ir
             .iter()
-            .filter_map(|(fun, ir_vec)| ir_vec.as_ref().map(|v| (fun, v)))
-            .for_each(|(fun, ir_vec)| ty::ty_check(*fun, ir_vec, &mut ctx));
+            .filter_map(|(fn_sym, ir_vec)| ir_vec.as_ref().map(|v| (fn_sym, v)))
+            .for_each(|(fn_sym, ir_vec)| ty::ty_check(*fn_sym, ir_vec, &mut ctx));
 
         let ir_graph = fun_ir
             .into_iter()
-            .map(|(fun, ir_vec)| (fun, ir_vec.map(IrGraph::from_ir_vec)))
+            .map(|(fn_sym, ir_vec)| (fn_sym, ir_vec.map(IrGraph::from_ir_vec)))
             .collect::<Vec<_>>();
 
         if opts.emit.as_deref() == Some("mir") {
@@ -105,12 +105,12 @@ fn display_fun_ir(
     fun_ir: impl IntoIterator<Item = (Symbol, Option<impl Display>)>,
     ctx: &mut Context,
 ) -> std::io::Result<()> {
-    for (fun, ir_vec) in fun_ir {
+    for (fn_sym, ir_vec) in fun_ir {
         writeln!(
             output,
             "{}: {}",
-            ctx.sym_table.name_of(fun).unwrap(),
-            ctx.sym_table.ty_of(fun).unwrap()
+            ctx.sym_table.name_of(fn_sym).unwrap(),
+            ctx.sym_table.ty_of(fn_sym).unwrap()
         )?;
         if let Some(ir_vec) = ir_vec {
             writeln!(output, "{}", ir_vec)?;
