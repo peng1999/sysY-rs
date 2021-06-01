@@ -134,7 +134,7 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
 
     let v = match quaruple.op {
         OpArg::Unary { op, arg } => match op {
-            UnaryOp::Assign => get_basic_value(arg, ctx),
+            UnaryOp::Const => get_basic_value(arg, ctx),
         },
         OpArg::Binary { op, arg1, arg2 } => {
             let arg1_value = get_basic_value(arg1, ctx);

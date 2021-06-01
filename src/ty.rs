@@ -66,7 +66,7 @@ fn ty_check_op(op: Op, args: &[Value], ctx: &Context) -> Ty {
     let args: Vec<_> = args.iter().map(|v| ty_from_value(*v, ctx)).collect();
     match (op, args.as_slice()) {
         // assign operator: t -> t
-        (Op::Unary(Assign), [ty]) => ty.clone(),
+        (Op::Unary(Const), [ty]) => ty.clone(),
         // arithmetic operator: (int, int) -> int
         (Op::Binary(Add | Sub | Mul | Div), &[Ty::Int, Ty::Int]) => Ty::Int,
         // comparison operator: (int, int) -> bool

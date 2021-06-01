@@ -48,7 +48,7 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
 #[must_use]
 fn trans_expr_place(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpArg {
     match atom_to_value(expr, ctx) {
-        Right(val) => UnaryOp::Assign.with_arg(val),
+        Right(val) => UnaryOp::Const.with_arg(val),
         Left(expr) => trans_compond_expr(expr, ir_vec, ctx),
     }
 }
