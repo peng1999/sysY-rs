@@ -100,6 +100,7 @@ pub fn ty_check(fn_sym: Symbol, ir_vec: &IrVec, ctx: &mut Context) {
             Ir::Quaruple(quaruple) => {
                 // 先检查调用正确
                 let result_ty = match quaruple.op {
+                    OpArg::Arg(_) => continue, // checked in trans_items
                     OpArg::Unary { op, arg } => ty_check_op(op.into(), &[arg], ctx),
                     OpArg::Binary { op, arg1, arg2 } => ty_check_op(op.into(), &[arg1, arg2], ctx),
                     OpArg::Call { fn_val, ref args } => {

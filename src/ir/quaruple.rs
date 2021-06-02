@@ -9,6 +9,7 @@ pub struct Quaruple {
 
 #[derive(Debug)]
 pub enum OpArg {
+    Arg(usize),
     Unary {
         op: UnaryOp,
         arg: Value,

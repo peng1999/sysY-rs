@@ -73,6 +73,7 @@ impl Display for Quaruple {
 impl Display for OpArg {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
+            OpArg::Arg(n) => write!(fmt, "Arg {}", n),
             OpArg::Unary { op, arg } => write!(fmt, "{:?} {}", op, arg),
             OpArg::Binary { op, arg1, arg2 } => write!(fmt, "{:?} {}, {}", op, arg1, arg2),
             OpArg::Call { fn_val, args } => write!(fmt, "Call {} [{}]", fn_val, args.iter().join(", ")),

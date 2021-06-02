@@ -175,10 +175,10 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
 
                 let mut ir_vec = IrVec::new(ctx.next_label());
                 ctx.sym_begin_scope();
-                for (ty, name) in param {
-                    // TODO: 实现参数
+                for (n, (ty, name)) in param.into_iter().enumerate() {
                     let sym = ctx.sym_insert(name).unwrap_or_log(ctx);
                     ctx.sym_table.ty_assert(sym, ty);
+                    ir_vec.push(OpArg::Arg(n).with_result(Some(sym)));
                 }
                 trans_stmts(stmts, &mut ir_vec, ctx);
                 ctx.sym_end_scope();
