@@ -134,7 +134,12 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
 
     let v = match quaruple.op {
         OpArg::Arg(n) => {
-            let fn_val = ctx.builder.get_insert_block().unwrap().get_parent().unwrap();
+            let fn_val = ctx
+                .builder
+                .get_insert_block()
+                .unwrap()
+                .get_parent()
+                .unwrap();
             fn_val.get_nth_param(n as u32).unwrap()
         }
         OpArg::Unary { op, arg } => match op {
