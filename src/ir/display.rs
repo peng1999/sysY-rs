@@ -54,7 +54,8 @@ impl Display for Ir {
 impl Display for BranchOp {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            BranchOp::Ret(v) => write!(fmt, "ret {}", v),
+            BranchOp::Ret(Some(v)) => write!(fmt, "ret {}", v),
+            BranchOp::Ret(None) => write!(fmt, "ret"),
             BranchOp::Goto(l) => write!(fmt, "goto {}", l),
             BranchOp::CondGoto(v, t, f) => write!(fmt, "if {} goto {} else goto {}", v, t, f),
         }
@@ -77,7 +78,7 @@ impl Display for OpArg {
             OpArg::Unary { op, arg } => write!(fmt, "{:?} {}", op, arg),
             OpArg::Binary { op, arg1, arg2 } => write!(fmt, "{:?} {}, {}", op, arg1, arg2),
             OpArg::Call { fn_val, args } => {
-                write!(fmt, "Call {} [{}]", fn_val, args.iter().join(", "))
+                write!(fmt, "Call {} [ {} ]", fn_val, args.iter().join(", "))
             }
         }
     }

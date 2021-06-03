@@ -130,7 +130,7 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
         }
         Return(expr) => {
             let val = trans_expr_val(expr.unwrap(), ir_vec, ctx);
-            ir_vec.push(BranchOp::Ret(val));
+            ir_vec.push(BranchOp::Ret(Some(val)));
         }
         Empty => {}
         If(expr, true_case, false_case) => {
@@ -181,6 +181,10 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
                     ir_vec.push(OpArg::Arg(n).with_result(Some(sym)));
                 }
                 trans_stmts(stmts, &mut ir_vec, ctx);
+                let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fun_ret_ty().unwrap();
+                if ret_ty == Ty::Void {
+                    ir_vec.push(BranchOp::Ret(None));
+                }
                 ctx.sym_end_scope();
 
                 (fn_sym, Some(ir_vec))

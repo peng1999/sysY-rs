@@ -32,7 +32,7 @@ impl Display for Ty {
 }
 
 impl Ty {
-    fn fun_ret_ty(&self) -> Option<Ty> {
+    pub fn fun_ret_ty(&self) -> Option<Ty> {
         match self {
             Ty::Fn(_, ret_ty) => Some(*ret_ty.clone()),
             _ => None,
@@ -115,7 +115,7 @@ pub fn ty_check(fn_sym: Symbol, ir_vec: &IrVec, ctx: &mut Context) {
             Ir::Branch(BranchOp::CondGoto(value, ..)) => {
                 ty_check_op(Op::Cond, &[*value], ctx);
             }
-            Ir::Branch(BranchOp::Ret(value)) => {
+            Ir::Branch(BranchOp::Ret(Some(value))) => {
                 let ty = ty_from_value(*value, ctx);
                 let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fun_ret_ty().unwrap();
                 if ty != ret_ty {

@@ -40,7 +40,7 @@ pub struct IrBlock {
 
 #[derive(Debug)]
 pub enum BranchOp {
-    Ret(Value),
+    Ret(Option<Value>),
     Goto(Label),
     CondGoto(Value, Label, Label),
 }
@@ -143,7 +143,12 @@ impl IrGraph {
             .map(|(idx, groups)| {
                 let (quaruples, branch) = transform_label(groups, &mut label_map);
 
-                let exit = branch.unwrap_or_else(|| BranchOp::Goto(block_order[idx + 1]));
+                let exit = branch.unwrap_or_else(|| {
+                    let next_block = block_order
+                        .get(idx + 1)
+                        .expect("function did not exit properly.");
+                    BranchOp::Goto(*next_block)
+                });
                 (
                     block_order[idx],
                     IrBlock {

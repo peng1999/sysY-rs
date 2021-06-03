@@ -13,7 +13,7 @@ use inkwell::{
 
 use crate::{
     context::Context as QContext,
-    ir::{self, BranchOp, IrGraph, Label, Quaruple},
+    ir::{self, IrGraph, Label},
     sym_table::{SymTable, Symbol},
     ty::Ty,
 };
@@ -129,8 +129,47 @@ fn get_basic_value<'a>(value: ir::Value, ctx: &mut Context<'a>) -> BasicValueEnu
     }
 }
 
-fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
-    use ir::{BinaryOp, OpArg, UnaryOp};
+fn get_binary_op<'a>(
+    op: ir::BinaryOp,
+    arg1: ir::Value,
+    arg2: ir::Value,
+    ctx: &mut Context<'a>,
+) -> BasicValueEnum<'a> {
+    use ir::BinaryOp;
+
+    let arg1_value = get_basic_value(arg1, ctx).into_int_value();
+    let arg2_value = get_basic_value(arg2, ctx).into_int_value();
+    match op {
+        BinaryOp::Add => ctx.builder.build_int_add(arg1_value, arg2_value, ""),
+        BinaryOp::Sub => ctx.builder.build_int_sub(arg1_value, arg2_value, ""),
+        BinaryOp::Mul => ctx.builder.build_int_mul(arg1_value, arg2_value, ""),
+        BinaryOp::Div => ctx.builder.build_int_signed_div(arg1_value, arg2_value, ""),
+        ir_op
+        @
+        (BinaryOp::Eq
+        | BinaryOp::Ne
+        | BinaryOp::Lt
+        | BinaryOp::Le
+        | BinaryOp::Gt
+        | BinaryOp::Ge) => {
+            let op = match ir_op {
+                BinaryOp::Eq => IntPredicate::EQ,
+                BinaryOp::Ne => IntPredicate::NE,
+                BinaryOp::Lt => IntPredicate::SLT,
+                BinaryOp::Le => IntPredicate::SLE,
+                BinaryOp::Gt => IntPredicate::SGT,
+                BinaryOp::Ge => IntPredicate::SGE,
+                _ => unreachable!(),
+            };
+            ctx.builder
+                .build_int_compare(op, arg1_value, arg2_value, "")
+        }
+    }
+    .into()
+}
+
+fn trans_quaruple(quaruple: ir::Quaruple, ctx: &mut Context) {
+    use ir::{OpArg, UnaryOp};
 
     let v = match quaruple.op {
         OpArg::Arg(n) => {
@@ -140,62 +179,12 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                 .unwrap()
                 .get_parent()
                 .unwrap();
-            fn_val.get_nth_param(n as u32).unwrap()
+            fn_val.get_nth_param(n as u32)
         }
         OpArg::Unary { op, arg } => match op {
-            UnaryOp::Const => get_basic_value(arg, ctx),
+            UnaryOp::Const => Some(get_basic_value(arg, ctx)),
         },
-        OpArg::Binary { op, arg1, arg2 } => {
-            let arg1_value = get_basic_value(arg1, ctx);
-            let arg2_value = get_basic_value(arg2, ctx);
-            match op {
-                BinaryOp::Add => ctx.builder.build_int_add(
-                    arg1_value.into_int_value(),
-                    arg2_value.into_int_value(),
-                    "",
-                ),
-                BinaryOp::Sub => ctx.builder.build_int_sub(
-                    arg1_value.into_int_value(),
-                    arg2_value.into_int_value(),
-                    "",
-                ),
-                BinaryOp::Mul => ctx.builder.build_int_mul(
-                    arg1_value.into_int_value(),
-                    arg2_value.into_int_value(),
-                    "",
-                ),
-                BinaryOp::Div => ctx.builder.build_int_signed_div(
-                    arg1_value.into_int_value(),
-                    arg2_value.into_int_value(),
-                    "",
-                ),
-                ir_op
-                @
-                (BinaryOp::Eq
-                | BinaryOp::Ne
-                | BinaryOp::Lt
-                | BinaryOp::Le
-                | BinaryOp::Gt
-                | BinaryOp::Ge) => {
-                    let op = match ir_op {
-                        BinaryOp::Eq => IntPredicate::EQ,
-                        BinaryOp::Ne => IntPredicate::NE,
-                        BinaryOp::Lt => IntPredicate::SLT,
-                        BinaryOp::Le => IntPredicate::SLE,
-                        BinaryOp::Gt => IntPredicate::SGT,
-                        BinaryOp::Ge => IntPredicate::SGE,
-                        _ => unreachable!(),
-                    };
-                    ctx.builder.build_int_compare(
-                        op,
-                        arg1_value.into_int_value(),
-                        arg2_value.into_int_value(),
-                        "",
-                    )
-                }
-            }
-            .into()
-        }
+        OpArg::Binary { op, arg1, arg2 } => Some(get_binary_op(op, arg1, arg2, ctx)),
         OpArg::Call { fn_val, args } => {
             let fn_sym = ctx.sym_fn[&fn_val.unwrap_reg()];
             let args = args
@@ -206,19 +195,20 @@ fn trans_quaruple(quaruple: Quaruple, ctx: &mut Context) {
                 .build_call(fn_sym, &args, "")
                 .try_as_basic_value()
                 .left()
-                .unwrap()
         }
     };
-    if let Some(reg) = quaruple.result {
+    if let (Some(reg), Some(v)) = (quaruple.result, v) {
         store_value(v, reg, ctx);
     }
 }
 
-fn trans_branch(branch_op: BranchOp, ctx: &mut Context<'_>) {
+fn trans_branch(branch_op: ir::BranchOp, ctx: &mut Context<'_>) {
+    use ir::BranchOp;
+
     match branch_op {
         BranchOp::Ret(val) => {
-            let value = get_basic_value(val, ctx);
-            ctx.builder.build_return(Some(&value));
+            let value = val.map(|val| get_basic_value(val, ctx));
+            ctx.builder.build_return(value.as_ref().map(|v| v as _));
         }
         BranchOp::Goto(label) => {
             ctx.builder
