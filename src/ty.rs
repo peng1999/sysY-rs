@@ -9,20 +9,44 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Ty {
+pub enum TyBasic {
     Int,
     Bool,
-    Array(Box<Ty>, i32),
+    Array(Box<TyBasic>, i32),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ty {
+    Basic(TyBasic),
     Void,
     Fn(Vec<Ty>, Box<Ty>),
+}
+
+pub enum TyPat {
+    The,
+    ElemOf(Box<TyPat>, i32),
+}
+
+impl From<TyBasic> for Ty {
+    fn from(ty: TyBasic) -> Self {
+        Ty::Basic(ty)
+    }
+}
+
+impl Display for TyBasic {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TyBasic::Int => write!(fmt, "int"),
+            TyBasic::Bool => write!(fmt, "bool"),
+            TyBasic::Array(ty, cnt) => write!(fmt, "{}[{}]", ty, cnt),
+        }
+    }
 }
 
 impl Display for Ty {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Ty::Int => write!(fmt, "int"),
-            Ty::Bool => write!(fmt, "bool"),
-            Ty::Array(ty, cnt) => write!(fmt, "{}[{}]", ty, cnt),
+            Ty::Basic(ty) => write!(fmt, "{}", ty),
             Ty::Void => write!(fmt, "void"),
             Ty::Fn(param, ret) => {
                 write!(fmt, "{}({})", ret, param.iter().join(", "))
@@ -38,6 +62,29 @@ impl Ty {
             _ => None,
         }
     }
+}
+
+impl TyPat {
+    pub fn match_ty(self, ty: TyBasic) -> TyBasic {
+        match self {
+            TyPat::The => ty,
+            TyPat::ElemOf(pat, n) => pat.match_ty(TyBasic::Array(Box::new(ty), n)),
+        }
+    }
+}
+
+#[test]
+fn ty_pat() {
+    use TyPat::*;
+
+    let pat = The;
+    assert_eq!(pat.match_ty(TyBasic::Bool), TyBasic::Bool);
+
+    let pat = ElemOf(Box::new(ElemOf(Box::new(The), 3)), 5);
+    assert_eq!(
+        pat.match_ty(TyBasic::Int),
+        TyBasic::Array(Box::new(TyBasic::Array(Box::new(TyBasic::Int), 5)), 3)
+    );
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -68,13 +115,18 @@ fn ty_check_op(op: Op, args: &[Value], ctx: &Context) -> Ty {
         // assign operator: t -> t
         (Op::Unary(Const), [ty]) => ty.clone(),
         // arithmetic operator: (int, int) -> int
-        (Op::Binary(Add | Sub | Mul | Div), &[Ty::Int, Ty::Int]) => Ty::Int,
+        (
+            Op::Binary(Add | Sub | Mul | Div),
+            &[Ty::Basic(TyBasic::Int), Ty::Basic(TyBasic::Int)],
+        ) => TyBasic::Int.into(),
         // comparison operator: (int, int) -> bool
-        (Op::Binary(Lt | Le | Gt | Ge), &[Ty::Int, Ty::Int]) => Ty::Bool,
+        (Op::Binary(Lt | Le | Gt | Ge), &[Ty::Basic(TyBasic::Int), Ty::Basic(TyBasic::Int)]) => {
+            TyBasic::Bool.into()
+        }
         // equality operator: (t, t) -> bool
-        (Op::Binary(BinaryOp::Eq | Ne), [ty_l, ty_r]) if ty_l == ty_r => Ty::Bool,
+        (Op::Binary(BinaryOp::Eq | Ne), [ty_l, ty_r]) if ty_l == ty_r => TyBasic::Bool.into(),
         // if bool
-        (Op::Cond, &[Ty::Bool]) => Ty::Bool,
+        (Op::Cond, &[Ty::Basic(TyBasic::Bool)]) => TyBasic::Bool.into(),
         // fn(args...) -> ret
         (Op::Call, &[Ty::Fn(ref arg_ty, ref ret_ty), ref tys @ ..]) if arg_ty == tys => {
             *ret_ty.clone()
@@ -86,8 +138,8 @@ fn ty_check_op(op: Op, args: &[Value], ctx: &Context) -> Ty {
 fn ty_from_value(value: Value, ctx: &Context) -> Ty {
     match value {
         Value::Reg(r) => ctx.sym_table.ty_of(r).unwrap(),
-        Value::Int(_) => Ty::Int,
-        Value::Bool(_) => Ty::Bool,
+        Value::Int(_) => TyBasic::Int.into(),
+        Value::Bool(_) => TyBasic::Bool.into(),
     }
 }
 

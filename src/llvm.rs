@@ -15,7 +15,7 @@ use crate::{
     context::Context as QContext,
     ir::{self, IrGraph, Label},
     sym_table::{SymTable, Symbol},
-    ty::Ty,
+    ty::{Ty, TyBasic},
 };
 
 struct Context<'a> {
@@ -66,8 +66,8 @@ impl<'a> AnyTypeEnumExt<'a> for AnyTypeEnum<'a> {}
 fn llvm_basic_type<'a>(ty: Ty, ctx: &Context<'a>) -> BasicTypeEnum<'a> {
     let llctx = ctx.ctx;
     match ty {
-        Ty::Int => llctx.i32_type().into(),
-        Ty::Bool => llctx.bool_type().into(),
+        Ty::Basic(TyBasic::Int) => llctx.i32_type().into(),
+        Ty::Basic(TyBasic::Bool) => llctx.bool_type().into(),
         Ty::Void | Ty::Fn(_, _) => panic!("{:?}", ty),
         o => unimplemented!("{}", o),
     }
@@ -76,7 +76,7 @@ fn llvm_basic_type<'a>(ty: Ty, ctx: &Context<'a>) -> BasicTypeEnum<'a> {
 fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> AnyTypeEnum<'a> {
     let llctx = ctx.ctx;
     match ty {
-        Ty::Int | Ty::Bool => llvm_basic_type(ty, ctx).as_any_type_enum(),
+        Ty::Basic(TyBasic::Int | TyBasic::Bool) => llvm_basic_type(ty, ctx).as_any_type_enum(),
         Ty::Void => llctx.void_type().into(),
         Ty::Fn(arg_ty, ret_ty) => {
             let args = arg_ty

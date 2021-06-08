@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::ast;
 use crate::context::Context;
-use crate::ty::Ty;
+use crate::ty::{self, Ty, TyBasic};
 
 grammar(ctx: &mut Context<'input>);
 
@@ -29,7 +29,7 @@ FnHead: ast::FnHead = {
         let void = ctx.interner.get_or_intern_static("void");
         let r = ctx.interner.get_or_intern(r);
         let n = ctx.interner.get_or_intern(n);
-        let r_ty = if r != void { ctx.get_ty(r) } else { Ty::Void };
+        let r_ty = if r != void { ctx.get_ty(r).into() } else { Ty::Void };
         if let Some(e) = e {
             v.push(e);
         }
@@ -41,12 +41,23 @@ FnHead: ast::FnHead = {
     }
 }
 
-TypedName: (Ty, ast::IString) = {
-    <t:Ident> <n:Ident> => {
+TypedName: (TyBasic, ast::IString) = {
+    <t:Ident> <n:DeclPat> => {
+        let (pat, sym_n) = n;
         let sym_t = ctx.interner.get_or_intern(t);
-        let sym_n = ctx.interner.get_or_intern(n);
-        let ty = ctx.get_ty(sym_t);
-        (ty, sym_n)
+        let ty = ctx.get_ty(sym_t).into();
+        (pat.match_ty(ty), sym_n)
+    }
+}
+
+DeclPat: (ty::TyPat, ast::IString) = {
+    <Ident> => {
+        let sym_n = ctx.interner.get_or_intern(<>);
+        (ty::TyPat::The, sym_n)
+    },
+    <pi:DeclPat> "[" <n:Num> "]" => {
+        let (p, i) = pi;
+        (ty::TyPat::ElemOf(Box::new(p), n), i)
     }
 }
 
@@ -145,7 +156,8 @@ BoolLit: ast::ExprKind = {
     "true" => ast::ExprKind::BoolLit(true),
     "false" => ast::ExprKind::BoolLit(false),
 }
-NumLit: ast::ExprKind = r"[0-9]+" => ast::ExprKind::IntLit(i32::from_str(<>).unwrap());
+NumLit: ast::ExprKind = Num => ast::ExprKind::IntLit(<>);
+Num: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
 Ident = r"[a-zA-Z][a-zA-Z0-9]*";
 
 UnaryOp: ast::UnOp = {

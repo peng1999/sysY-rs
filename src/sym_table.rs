@@ -50,7 +50,8 @@ impl SymTable {
     }
 
     /// 断言符号的类型
-    pub fn ty_assert(&mut self, sym: Symbol, ty: Ty) {
+    pub fn ty_assert(&mut self, sym: Symbol, ty: impl Into<Ty>) {
+        let ty = ty.into();
         self.ty_table
             .entry(sym)
             .and_modify(|prev_ty| {
@@ -96,7 +97,7 @@ fn sym_table_ty_assert_with_name_imcompatible() {
     let mut sym_table = SymTable::new();
     let sym = sym_table.gen_const_symbol();
     let t1 = Ty::Fn(vec![], Box::new(Ty::Void));
-    let t2 = Ty::Fn(vec![], Box::new(Ty::Int));
+    let t2 = Ty::Fn(vec![], Box::new(TyBasic::Int.into()));
 
     sym_table.ty_assert_with_name(sym, t1, "abc".to_string());
     sym_table.ty_assert_with_name(sym, t2, "abc".to_string());

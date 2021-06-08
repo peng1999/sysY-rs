@@ -151,7 +151,7 @@ fn trans_stmts(stmts: Vec<Stmt>, ir_vec: &mut IrVec, ctx: &mut Context) {
 
 fn register_fn(fn_head: FnHead, ctx: &mut Context) -> Symbol {
     let name = ctx.interner.resolve(fn_head.name).unwrap().to_string();
-    let param_ty = fn_head.param.into_iter().map(|(ty, _)| ty).collect();
+    let param_ty = fn_head.param.into_iter().map(|(ty, _)| ty.into()).collect();
     let fn_ty = Ty::Fn(param_ty, Box::new(fn_head.ret_ty));
 
     let fun_sym = ctx

@@ -7,7 +7,7 @@ use crate::{
     error::{LineColLookup, SymbolRedefError},
     ir::Label,
     sym_table::{SymTable, Symbol},
-    ty::Ty,
+    ty::TyBasic,
 };
 
 #[derive(Debug)]
@@ -15,7 +15,7 @@ pub struct Context<'source> {
     /// 提供从 IString 到标识符的查找表
     var_lookup: Vec<HashMap<IString, Symbol>>,
     /// 提供从 IString 到类型名的查找表
-    ty_lookup: HashMap<IString, Ty>,
+    ty_lookup: HashMap<IString, TyBasic>,
     /// 用于生成 Label
     next_label_id: i32,
     /// 用于 String Intern
@@ -31,7 +31,7 @@ pub struct Context<'source> {
 impl Context<'_> {
     pub fn new(source: &str) -> Context {
         let mut interner = StringInterner::new();
-        let ty_lookup = [("int", Ty::Int), ("bool", Ty::Bool)]
+        let ty_lookup = [("int", TyBasic::Int), ("bool", TyBasic::Bool)]
             .iter()
             .map(|(name, ty)| (interner.get_or_intern_static(name), ty.clone()))
             .collect();
@@ -98,7 +98,7 @@ impl Context<'_> {
         })
     }
 
-    pub fn get_ty(&mut self, ty: IString) -> Ty {
+    pub fn get_ty(&mut self, ty: IString) -> TyBasic {
         self.ty_lookup.get(&ty).cloned().unwrap_or_else(|| {
             let name = self.interner.resolve(ty).unwrap();
             panic!("undefined type: {}", name);

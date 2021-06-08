@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::ty::Ty;
+use crate::ty::{Ty, TyBasic};
 
 /// Interned string occurs in source code
 pub type IString = string_interner::DefaultSymbol;
@@ -46,13 +46,13 @@ pub enum Item {
 pub struct FnHead {
     pub name: IString,
     pub ret_ty: Ty,
-    pub param: Vec<(Ty, IString)>,
+    pub param: Vec<(TyBasic, IString)>,
 }
 
 #[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
-    Decl(Ty, IString, Expr),
+    Decl(TyBasic, IString, Expr),
     Assign(Expr, Expr),
     Expr(Expr),
     If(Expr, Box<Stmt>, Box<Stmt>),
