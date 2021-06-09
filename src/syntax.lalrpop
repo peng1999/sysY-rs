@@ -86,7 +86,11 @@ StmtOther: ast::Stmt = {
 Decl: ast::Stmt = {
     <tn:TypedName> "=" <v:Expr> ";" => {
         let (ty, sym_n) = tn;
-        ast::Stmt::Decl(ty, sym_n, v)
+        ast::Stmt::Decl(ty, sym_n, Some(v))
+    },
+    <tn:TypedName> ";" => {
+        let (ty, sym_n) = tn;
+        ast::Stmt::Decl(ty, sym_n, None)
     },
 }
 

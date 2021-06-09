@@ -105,9 +105,14 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
 
     match stmt {
         Decl(ty, name, expr) => {
-            let arg = trans_expr_place(expr, ir_vec, ctx);
-            let ident = ctx.sym_insert(name).unwrap_or_log(ctx);
-            ir_vec.push(arg.with_result(Some(ident)));
+            let ident = if let Some(expr) = expr {
+                let arg = trans_expr_place(expr, ir_vec, ctx);
+                let ident = ctx.sym_insert(name).unwrap_or_log(ctx);
+                ir_vec.push(arg.with_result(Some(ident)));
+                ident
+            } else {
+                ctx.sym_insert(name).unwrap_or_log(ctx)
+            };
             // 类型断言需要在有AST时进行处理
             ctx.sym_table.ty_assert(ident, ty);
         }
