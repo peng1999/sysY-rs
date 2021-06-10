@@ -8,6 +8,10 @@ $projectMeta = cargo metadata --format-version 1 | ConvertFrom-Json
 $targetRoot = $projectMeta.target_directory
 Write-Output "Project target: $targetRoot"
 cargo build
+if (-not $?) {
+    Write-Error "[cargo build] Error"
+    return
+}
 
 $compiler = Join-Path $targetRoot "debug/sysy-rs"
 $linker = Join-Path $PSScriptRoot "ld.sh"
