@@ -89,13 +89,20 @@ fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> AnyTypeEnum<'a> {
     }
 }
 
-/// Get a `PointerValue` from a non-const `Ident` in ir.
-fn get_pointer<'a>(ident: Symbol, ctx: &mut Context<'a>) -> PointerValue<'a> {
+/// Allocate variable
+fn build_pointer(ident: Symbol, ctx: &mut Context) {
+    assert!(!ctx.sym_table.is_const(ident));
     let sym_type = llvm_basic_type(ctx.sym_table.ty_of(ident).unwrap(), ctx);
     let builder = &ctx.builder;
-    *ctx.pvar
-        .entry(ident)
-        .or_insert_with(|| builder.build_alloca(sym_type, ""))
+    ctx.pvar
+        .insert(ident, builder.build_alloca(sym_type, ""))
+        .ok_or(())
+        .unwrap_err();
+}
+
+/// Get a `PointerValue` from a non-const `Ident` in ir.
+fn get_pointer<'a>(ident: Symbol, ctx: &mut Context<'a>) -> PointerValue<'a> {
+    ctx.pvar[&ident]
 }
 
 fn store_value<'a>(value: BasicValueEnum<'a>, reg: Symbol, ctx: &mut Context<'a>) {
@@ -224,13 +231,34 @@ fn trans_branch(branch_op: ir::BranchOp, ctx: &mut Context<'_>) {
     }
 }
 
-fn build_function(function: FunctionValue, mut ir_graph: IrGraph, ctx: &mut Context<'_>) {
+fn build_function(
+    fn_sym: Symbol,
+    function: FunctionValue,
+    mut ir_graph: IrGraph,
+    ctx: &mut Context<'_>,
+) {
+    let var_block = ctx.ctx.append_basic_block(function, "");
+
     let mut label_block = HashMap::new();
     for &label in &ir_graph.block_order {
         let block = ctx.ctx.append_basic_block(function, &label.to_string());
         label_block.insert(label, block);
     }
     ctx.label_block = label_block;
+
+    // 插入所有的变量
+    ctx.builder.position_at_end(var_block);
+    ctx.sym_table
+        .locals_of(fn_sym)
+        .into_iter()
+        .filter(|&&ident| !ctx.sym_table.is_const(ident))
+        .cloned()
+        .collect::<Vec<_>>() // This is needed to take ownership from ctx
+        .into_iter()
+        .for_each(|ident| build_pointer(ident, ctx));
+    ctx.builder
+        .build_unconditional_branch(ctx.label_block[&ir_graph.block_order[0]]);
+
     for &label in &ir_graph.block_order {
         ctx.builder.position_at_end(ctx.label_block[&label]);
         let ir_block = ir_graph.blocks.remove(&label).unwrap();
@@ -248,16 +276,16 @@ fn ir_graph_to_module<'a>(
     let llctx = ctx.ctx;
     let module = llctx.create_module("program");
 
-    for (fun_sym, ir_graph) in ir_graph {
-        let name = ctx.sym_table.name_of(fun_sym).unwrap();
-        let fun_ty = llvm_type(ctx.sym_table.ty_of(fun_sym).unwrap(), ctx).into_function_type();
+    for (fn_sym, ir_graph) in ir_graph {
+        let name = ctx.sym_table.name_of(fn_sym).unwrap();
+        let fun_ty = llvm_type(ctx.sym_table.ty_of(fn_sym).unwrap(), ctx).into_function_type();
 
-        let fn_sym = module
+        let fn_val = module
             .get_function(name)
             .unwrap_or_else(|| module.add_function(name, fun_ty, None));
-        ctx.sym_fn.entry(fun_sym).or_insert(fn_sym);
+        ctx.sym_fn.entry(fn_sym).or_insert(fn_val);
         if let Some(ir_graph) = ir_graph {
-            build_function(fn_sym, ir_graph, ctx);
+            build_function(fn_sym, fn_val, ir_graph, ctx);
         }
     }
 

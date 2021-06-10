@@ -12,6 +12,8 @@ pub struct SymTable {
     non_const_set: HashSet<Symbol>,
     ty_table: HashMap<Symbol, Ty>,
     sym_name: HashMap<Symbol, String>,
+    locals: HashMap<Symbol, Vec<Symbol>>,
+    current_fn: Option<Symbol>,
 }
 
 #[derive(Debug)]
@@ -26,6 +28,8 @@ impl SymTable {
             non_const_set: HashSet::new(),
             ty_table: HashMap::new(),
             sym_name: HashMap::new(),
+            locals: HashMap::new(),
+            current_fn: None,
         }
     }
 
@@ -35,14 +39,33 @@ impl SymTable {
         Symbol(id)
     }
 
+    /// Set the sym table's current fn.
+    pub fn set_current_fn(&mut self, current_fn: Symbol) {
+        self.current_fn = Some(current_fn);
+        self.locals.entry(current_fn).or_default();
+    }
+
+    pub fn clear_current_fn(&mut self) {
+        self.current_fn = None;
+    }
+
+    fn add_to_current_fn(&mut self, sym: Symbol) {
+        if let Some(fn_sym) = self.current_fn {
+            self.locals.get_mut(&fn_sym).unwrap().push(sym);
+        }
+    }
+
     pub fn gen_var_symbol(&mut self) -> Symbol {
         let sym = self.next_symbol();
         self.non_const_set.insert(sym);
+        self.add_to_current_fn(sym);
         sym
     }
 
     pub fn gen_const_symbol(&mut self) -> Symbol {
-        self.next_symbol()
+        let sym = self.next_symbol();
+        self.add_to_current_fn(sym);
+        sym
     }
 
     pub fn is_const(&self, ident: Symbol) -> bool {
@@ -76,6 +99,16 @@ impl SymTable {
     pub fn name_of(&self, sym: Symbol) -> Option<&str> {
         self.sym_name.get(&sym).map(String::as_ref)
     }
+
+    pub fn locals_of(&self, fun_sym: Symbol) -> &[Symbol] {
+        &self.locals[&fun_sym]
+    }
+}
+
+impl Default for SymTable {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[test]
@@ -94,6 +127,8 @@ fn sym_table_ty_assert_with_name() {
 #[test]
 #[should_panic]
 fn sym_table_ty_assert_with_name_imcompatible() {
+    use crate::ty::TyBasic;
+
     let mut sym_table = SymTable::new();
     let sym = sym_table.gen_const_symbol();
     let t1 = Ty::Fn(vec![], Box::new(Ty::Void));

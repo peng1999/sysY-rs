@@ -179,6 +179,7 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
                 let fn_sym = register_fn(fn_head, ctx);
 
                 let mut ir_vec = IrVec::new(ctx.next_label());
+                ctx.sym_table.set_current_fn(fn_sym);
                 ctx.sym_begin_scope();
                 for (n, (ty, name)) in param.into_iter().enumerate() {
                     let sym = ctx.sym_insert(name).unwrap_or_log(ctx);
@@ -191,6 +192,7 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
                     ir_vec.push(BranchOp::Ret(None));
                 }
                 ctx.sym_end_scope();
+                ctx.sym_table.clear_current_fn();
 
                 (fn_sym, Some(ir_vec))
             }
