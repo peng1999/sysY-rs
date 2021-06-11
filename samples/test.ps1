@@ -39,11 +39,11 @@ foreach ($cpp in $cpps) {
         $out = $in | & $myexe
         $mystatus = $LASTEXITCODE
         if (($out -ne $truth) -or ($mystatus -ne $status)) {
-            Write-Error "[$($cpp.Name)] Opps! '$in' -> "
-            Write-Error "clang: '$truth' -> $status"
-            Write-Error "sysy-rs: '$mytruth' -> $mystatus"
+            Write-Error "[$($cpp.Name)] Opps! stdin: '$in'"
+            Write-Error "clang: '$truth' =$status"
+            Write-Error "sysy-rs: '$mytruth' =$mystatus"
         } else {
-            Write-Output "[$($cpp.Name)] '$in' -> '$truth' -> $status"
+            Write-Output "[$($cpp.Name)] stdin: '$in' stdout: '$truth' = $status"
         }
     }
 }
