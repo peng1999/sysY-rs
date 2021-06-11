@@ -78,7 +78,13 @@ impl Display for OpArg {
             OpArg::Unary { op, arg } => write!(fmt, "{:?} {}", op, arg),
             OpArg::Binary { op, arg1, arg2 } => write!(fmt, "{:?} {}, {}", op, arg1, arg2),
             OpArg::Call { fn_val, args } => {
-                write!(fmt, "Call {} [ {} ]", fn_val.0, args.iter().join(", "))
+                write!(fmt, "Call %{} [ {} ]", fn_val.0, args.iter().join(", "))
+            }
+            OpArg::LoadArr { arr, idx } => {
+                write!(fmt, "LoadArr %{} [ {} ]", arr.0, idx.iter().join(", "))
+            }
+            OpArg::StoreArr { arr, idx, val } => {
+                write!(fmt, "StoreArr %{} [ {} ] <- {}", arr.0, idx.iter().join(", "), val)
             }
         }
     }

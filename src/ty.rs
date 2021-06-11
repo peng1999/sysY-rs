@@ -158,6 +158,8 @@ pub fn ty_check(fn_sym: Symbol, ir_vec: &IrVec, ctx: &mut Context) {
                     OpArg::Call { fn_val, ref args } => {
                         ty_check_op(Op::Call, &[&[fn_val.into()], args.as_slice()].concat(), ctx)
                     }
+                    OpArg::LoadArr { .. } => todo!(),
+                    OpArg::StoreArr { .. } => todo!(),
                 };
                 // 再检查返回值是否跟变量匹配
                 if let Some(result) = quaruple.result {

@@ -203,6 +203,8 @@ fn trans_quaruple(quaruple: ir::Quaruple, ctx: &mut Context) {
                 .try_as_basic_value()
                 .left()
         }
+        OpArg::LoadArr { .. } => todo!("loadarr"),
+        OpArg::StoreArr { .. } => todo!("storearr"),
     };
     if let (Some(reg), Some(v)) = (quaruple.result, v) {
         store_value(v, reg, ctx);

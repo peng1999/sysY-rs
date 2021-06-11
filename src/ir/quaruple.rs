@@ -23,6 +23,15 @@ pub enum OpArg {
         fn_val: Symbol,
         args: Vec<Value>,
     },
+    LoadArr {
+        arr: Symbol,
+        idx: Vec<Value>,
+    },
+    StoreArr {
+        arr: Symbol,
+        idx: Vec<Value>,
+        val: Value,
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
