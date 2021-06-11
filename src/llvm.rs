@@ -193,7 +193,7 @@ fn trans_quaruple(quaruple: ir::Quaruple, ctx: &mut Context) {
         },
         OpArg::Binary { op, arg1, arg2 } => Some(get_binary_op(op, arg1, arg2, ctx)),
         OpArg::Call { fn_val, args } => {
-            let fn_sym = ctx.sym_fn[&fn_val.unwrap_reg()];
+            let fn_sym = ctx.sym_fn[&fn_val];
             let args = args
                 .into_iter()
                 .map(|arg| get_basic_value(arg, ctx))

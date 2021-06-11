@@ -156,7 +156,7 @@ pub fn ty_check(fn_sym: Symbol, ir_vec: &IrVec, ctx: &mut Context) {
                     OpArg::Unary { op, arg } => ty_check_op(op.into(), &[arg], ctx),
                     OpArg::Binary { op, arg1, arg2 } => ty_check_op(op.into(), &[arg1, arg2], ctx),
                     OpArg::Call { fn_val, ref args } => {
-                        ty_check_op(Op::Call, &[&[fn_val], args.as_slice()].concat(), ctx)
+                        ty_check_op(Op::Call, &[&[fn_val.into()], args.as_slice()].concat(), ctx)
                     }
                 };
                 // 再检查返回值是否跟变量匹配

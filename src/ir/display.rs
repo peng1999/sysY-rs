@@ -78,7 +78,7 @@ impl Display for OpArg {
             OpArg::Unary { op, arg } => write!(fmt, "{:?} {}", op, arg),
             OpArg::Binary { op, arg1, arg2 } => write!(fmt, "{:?} {}, {}", op, arg1, arg2),
             OpArg::Call { fn_val, args } => {
-                write!(fmt, "Call {} [ {} ]", fn_val, args.iter().join(", "))
+                write!(fmt, "Call {} [ {} ]", fn_val.0, args.iter().join(", "))
             }
         }
     }

@@ -94,7 +94,7 @@ impl Value {
     pub fn unwrap_reg(self) -> Symbol {
         match self {
             Value::Reg(s) => s,
-            o => panic!("Value should not contain {:?}", o),
+            o => panic!("Expected Value, found {:?}", o),
         }
     }
 }
