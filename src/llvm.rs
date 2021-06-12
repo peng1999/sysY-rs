@@ -266,7 +266,7 @@ fn build_function(
     ctx.builder.position_at_end(var_block);
     ctx.sym_table
         .locals_of(fn_sym)
-        .into_iter()
+        .iter()
         .filter(|&&ident| !ctx.sym_table.is_const(ident))
         .cloned()
         .collect::<Vec<_>>() // This is needed to take ownership from ctx
