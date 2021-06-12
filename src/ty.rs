@@ -13,19 +13,19 @@ use crate::{
 pub enum TyBasic {
     Int,
     Bool,
-    Array(Box<TyBasic>, i32),
+    Array(Box<TyBasic>, u32),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Basic(TyBasic),
     Void,
-    Fn(Vec<Ty>, Box<Ty>),
+    Fn(Vec<TyBasic>, Box<Ty>),
 }
 
 pub enum TyPat {
     The,
-    ElemOf(Box<TyPat>, i32),
+    ElemOf(Box<TyPat>, u32),
 }
 
 impl From<TyBasic> for Ty {
@@ -69,10 +69,26 @@ impl Display for Ty {
     }
 }
 
+impl PartialEq<TyBasic> for Ty {
+    fn eq(&self, other: &TyBasic) -> bool {
+        match self {
+            Ty::Basic(s) => s == other,
+            _ => false,
+        }
+    }
+}
+
 impl Ty {
     pub fn fun_ret_ty(&self) -> Option<Ty> {
         match self {
             Ty::Fn(_, ret_ty) => Some(*ret_ty.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn into_ty_basic(self) -> Option<TyBasic> {
+        match self {
+            Ty::Basic(ty) => Some(ty),
             _ => None,
         }
     }
@@ -143,7 +159,7 @@ fn ty_check_op(op: Op, args: &[Value], ctx: &Context) -> Ty {
         // if bool
         (Op::Cond, &[Ty::Basic(TyBasic::Bool)]) => TyBasic::Bool.into(),
         // fn(args...) -> ret
-        (Op::Call, &[Ty::Fn(ref arg_ty, ref ret_ty), ref tys @ ..]) if arg_ty == tys => {
+        (Op::Call, &[Ty::Fn(ref arg_ty, ref ret_ty), ref tys @ ..]) if tys == arg_ty => {
             *ret_ty.clone()
         }
         // arr[idx...]

@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::str::FromStr;
 
 use crate::ast;
@@ -57,7 +58,7 @@ DeclPat: (ty::TyPat, ast::IString) = {
     },
     <pi:DeclPat> "[" <n:Num> "]" => {
         let (p, i) = pi;
-        (ty::TyPat::ElemOf(Box::new(p), n), i)
+        (ty::TyPat::ElemOf(Box::new(p), n.try_into().unwrap()), i)
     }
 }
 

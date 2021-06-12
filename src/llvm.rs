@@ -6,7 +6,7 @@ use inkwell::{
     context::Context as LLVMContext,
     module::Module,
     targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
-    types::{AnyType, AnyTypeEnum, BasicTypeEnum, FunctionType},
+    types::{AnyType, AnyTypeEnum, ArrayType, BasicType, BasicTypeEnum, FunctionType},
     values::{BasicValueEnum, FunctionValue, PointerValue},
     IntPredicate, OptimizationLevel,
 };
@@ -56,27 +56,38 @@ where
         match self.as_any_type_enum() {
             AnyTypeEnum::IntType(ty) => ty.fn_type(param_types, is_var_args),
             AnyTypeEnum::VoidType(ty) => ty.fn_type(param_types, is_var_args),
-            o => todo!("{:?}", o),
+            o => unimplemented!("{:?}", o),
+        }
+    }
+}
+
+trait BasicTypeEnumExt<'ctx>: BasicType<'ctx> {
+    fn array_type(&self, n: u32) -> ArrayType<'ctx> {
+        match self.as_basic_type_enum() {
+            BasicTypeEnum::IntType(ty) => ty.array_type(n),
+            BasicTypeEnum::ArrayType(ty) => ty.array_type(n),
+            o => unimplemented!("{:?}", o),
         }
     }
 }
 
 impl<'a> AnyTypeEnumExt<'a> for AnyTypeEnum<'a> {}
 
-fn llvm_basic_type<'a>(ty: Ty, ctx: &Context<'a>) -> BasicTypeEnum<'a> {
+fn llvm_basic_type<'a>(ty: TyBasic, ctx: &Context<'a>) -> BasicTypeEnum<'a> {
     let llctx = ctx.ctx;
     match ty {
-        Ty::Basic(TyBasic::Int) => llctx.i32_type().into(),
-        Ty::Basic(TyBasic::Bool) => llctx.bool_type().into(),
-        Ty::Void | Ty::Fn(_, _) => panic!("{:?}", ty),
-        o => unimplemented!("{}", o),
+        TyBasic::Int => llctx.i32_type().into(),
+        TyBasic::Bool => llctx.bool_type().into(),
+        TyBasic::Array(ty, n) => llvm_basic_type(*ty, ctx).array_type(n).into(),
     }
 }
 
 fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> AnyTypeEnum<'a> {
     let llctx = ctx.ctx;
     match ty {
-        Ty::Basic(TyBasic::Int | TyBasic::Bool) => llvm_basic_type(ty, ctx).as_any_type_enum(),
+        Ty::Basic(ty @ (TyBasic::Int | TyBasic::Bool)) => {
+            llvm_basic_type(ty, ctx).as_any_type_enum()
+        }
         Ty::Void => llctx.void_type().into(),
         Ty::Fn(arg_ty, ret_ty) => {
             let args = arg_ty
@@ -92,7 +103,10 @@ fn llvm_type<'a>(ty: Ty, ctx: &Context<'a>) -> AnyTypeEnum<'a> {
 /// Allocate variable
 fn build_pointer(ident: Symbol, ctx: &mut Context) {
     assert!(!ctx.sym_table.is_const(ident));
-    let sym_type = llvm_basic_type(ctx.sym_table.ty_of(ident).unwrap(), ctx);
+    let sym_type = llvm_basic_type(
+        ctx.sym_table.ty_of(ident).unwrap().into_ty_basic().unwrap(),
+        ctx,
+    );
     let builder = &ctx.builder;
     ctx.pvar
         .insert(ident, builder.build_alloca(sym_type, ""))
