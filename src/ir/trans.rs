@@ -39,6 +39,14 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
                 .collect();
             OpArg::call(fun_val, args_val)
         }
+        ExprKind::Index(arr, idx) => {
+            let arr_val = trans_expr_val(arr, ir_vec, ctx).unwrap_reg();
+            let idx_val = idx
+                .into_iter()
+                .map(|e| trans_expr_val(e, ir_vec, ctx))
+                .collect();
+            OpArg::load_arr(arr_val, idx_val)
+        }
         // Neg
         expr => unimplemented!("{:?}", expr),
     }
@@ -126,11 +134,7 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
                 }
                 ExprKind::Index(arr, idx) => {
                     let val = trans_expr_val(expr, ir_vec, ctx);
-                    let ident = if let ExprKind::Ident(sym) = *arr {
-                        ctx.sym_lookup_or_panic(sym, arr.span())
-                    } else {
-                        panic!("invalid syntax");
-                    };
+                    let ident = trans_expr_val(arr, ir_vec, ctx).unwrap_reg();
                     let idx_val = idx
                         .into_iter()
                         .map(|e| trans_expr_val(e, ir_vec, ctx))

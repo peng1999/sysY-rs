@@ -31,7 +31,7 @@ pub enum OpArg {
         arr: Symbol,
         idx: Vec<Value>,
         val: Value,
-    }
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -60,6 +60,10 @@ impl OpArg {
 
     pub fn store_arr(arr: Symbol, idx: Vec<Value>, val: Value) -> OpArg {
         OpArg::StoreArr { arr, idx, val }
+    }
+
+    pub fn load_arr(arr: Symbol, idx: Vec<Value>) -> OpArg {
+        OpArg::LoadArr { arr, idx }
     }
 
     pub fn with_result(self, result: Option<Symbol>) -> Quaruple {

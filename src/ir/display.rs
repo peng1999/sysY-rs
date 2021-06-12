@@ -84,7 +84,13 @@ impl Display for OpArg {
                 write!(fmt, "LoadArr %{} [ {} ]", arr.0, idx.iter().join(", "))
             }
             OpArg::StoreArr { arr, idx, val } => {
-                write!(fmt, "StoreArr %{} [ {} ] <- {}", arr.0, idx.iter().join(", "), val)
+                write!(
+                    fmt,
+                    "StoreArr %{} [ {} ] <- {}",
+                    arr.0,
+                    idx.iter().join(", "),
+                    val
+                )
             }
         }
     }
