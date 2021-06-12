@@ -116,14 +116,30 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
             // 类型断言需要在有AST时进行处理
             ctx.sym_table.ty_assert(ident, ty);
         }
-        Assign(name, expr) => match *name {
-            ExprKind::Ident(sym) => {
-                let arg = trans_expr_place(expr, ir_vec, ctx);
-                let ident = ctx.sym_lookup_or_panic(sym, name.span());
-                ir_vec.push(arg.with_result(Some(ident)));
+        Assign(name, expr) => {
+            let name_span = name.span();
+            match name.into_inner() {
+                ExprKind::Ident(sym) => {
+                    let arg = trans_expr_place(expr, ir_vec, ctx);
+                    let ident = ctx.sym_lookup_or_panic(sym, name_span);
+                    ir_vec.push(arg.with_result(Some(ident)));
+                }
+                ExprKind::Index(arr, idx) => {
+                    let val = trans_expr_val(expr, ir_vec, ctx);
+                    let ident = if let ExprKind::Ident(sym) = *arr {
+                        ctx.sym_lookup_or_panic(sym, arr.span())
+                    } else {
+                        panic!("invalid syntax");
+                    };
+                    let idx_val = idx
+                        .into_iter()
+                        .map(|e| trans_expr_val(e, ir_vec, ctx))
+                        .collect();
+                    ir_vec.push(OpArg::store_arr(ident, idx_val, val).with_result(None));
+                }
+                _ => todo!(),
             }
-            _ => todo!(),
-        },
+        }
         Expr(expr) => {
             let arg = trans_expr_place(expr, ir_vec, ctx);
             ir_vec.push(arg.with_result(None));

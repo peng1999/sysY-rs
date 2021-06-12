@@ -57,6 +57,11 @@ impl OpArg {
     pub fn call(fn_val: Symbol, args: Vec<Value>) -> OpArg {
         OpArg::Call { fn_val, args }
     }
+
+    pub fn store_arr(arr: Symbol, idx: Vec<Value>, val: Value) -> OpArg {
+        OpArg::StoreArr { arr, idx, val }
+    }
+
     pub fn with_result(self, result: Option<Symbol>) -> Quaruple {
         Quaruple { result, op: self }
     }
