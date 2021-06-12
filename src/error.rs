@@ -121,6 +121,16 @@ fn line_col_lookup_null_str() {
     assert_eq!(lookup.lookup(0), (1, 1));
 }
 
+#[macro_export]
+macro_rules! log_and_exit {
+    ($($arg:tt)*) => {
+        {
+            eprintln!($($arg)*);
+            ::std::process::exit(1)
+        }
+    };
+}
+
 #[test]
 fn line_col_lookup_multiline() {
     let source = "line1\nline2";

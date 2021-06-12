@@ -5,6 +5,7 @@ use itertools::Itertools;
 use crate::{
     context::Context,
     ir::{self, Ir, IrVec, Value},
+    log_and_exit,
     sym_table::Symbol,
 };
 
@@ -30,6 +31,19 @@ pub enum TyPat {
 impl From<TyBasic> for Ty {
     fn from(ty: TyBasic) -> Self {
         Ty::Basic(ty)
+    }
+}
+
+impl TyBasic {
+    fn get_elem_ty_rank(&self) -> (TyBasic, usize) {
+        match self {
+            TyBasic::Int => (TyBasic::Int, 0),
+            TyBasic::Bool => (TyBasic::Bool, 0),
+            TyBasic::Array(ty, _) => {
+                let (elem_ty, n) = ty.get_elem_ty_rank();
+                (elem_ty, n + 1)
+            }
+        }
     }
 }
 
@@ -93,6 +107,7 @@ enum Op {
     Unary(ir::UnaryOp),
     Cond,
     Call,
+    Index,
 }
 
 impl From<ir::UnaryOp> for Op {
@@ -131,7 +146,17 @@ fn ty_check_op(op: Op, args: &[Value], ctx: &Context) -> Ty {
         (Op::Call, &[Ty::Fn(ref arg_ty, ref ret_ty), ref tys @ ..]) if arg_ty == tys => {
             *ret_ty.clone()
         }
-        _ => panic!("{:?} are not compatible with {:?}", args, op),
+        // arr[idx...]
+        (Op::Index, &[Ty::Basic(ref arr_ty), ref idx_ty @ ..])
+            if idx_ty.iter().all(|ty| ty == &Ty::Basic(TyBasic::Int)) =>
+        {
+            let (elem_ty, n) = arr_ty.get_elem_ty_rank();
+            if idx_ty.len() != n {
+                log_and_exit!("wrong array rank");
+            }
+            elem_ty.into()
+        }
+        _ => log_and_exit!("{:?} are not compatible with {:?}", args, op),
     }
 }
 
@@ -158,8 +183,18 @@ pub fn ty_check(fn_sym: Symbol, ir_vec: &IrVec, ctx: &mut Context) {
                     OpArg::Call { fn_val, ref args } => {
                         ty_check_op(Op::Call, &[&[fn_val.into()], args.as_slice()].concat(), ctx)
                     }
-                    OpArg::LoadArr { .. } => todo!(),
-                    OpArg::StoreArr { .. } => todo!(),
+                    OpArg::LoadArr { arr, ref idx } => {
+                        ty_check_op(Op::Index, &[&[arr.into()], idx.as_slice()].concat(), ctx)
+                    }
+                    OpArg::StoreArr { arr, ref idx, val } => {
+                        let ty =
+                            ty_check_op(Op::Index, &[&[arr.into()], idx.as_slice()].concat(), ctx);
+                        let val_ty = ty_from_value(val, ctx);
+                        if ty != val_ty {
+                            log_and_exit!("cannot store type {} into value of type {}", ty, val_ty);
+                        }
+                        Ty::Void
+                    }
                 };
                 // 再检查返回值是否跟变量匹配
                 if let Some(result) = quaruple.result {
