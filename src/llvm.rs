@@ -189,6 +189,21 @@ fn get_binary_op<'a>(
     .into()
 }
 
+fn get_element_ptr<'a>(
+    arr: Symbol,
+    idx: Vec<ir::Value>,
+    ctx: &mut Context<'a>,
+) -> PointerValue<'a> {
+    let i32_type = ctx.ctx.i32_type();
+    let arr_ptr = get_pointer(arr, ctx);
+    let mut idx_val = vec![i32_type.const_int(0, false)];
+    idx_val.extend(
+        idx.into_iter()
+            .map(|v| get_basic_value(v, ctx).into_int_value()),
+    );
+    unsafe { ctx.builder.build_gep(arr_ptr, &idx_val, "") }
+}
+
 fn trans_quaruple(quaruple: ir::Quaruple, ctx: &mut Context) {
     use ir::{OpArg, UnaryOp};
 
@@ -217,8 +232,16 @@ fn trans_quaruple(quaruple: ir::Quaruple, ctx: &mut Context) {
                 .try_as_basic_value()
                 .left()
         }
-        OpArg::LoadArr { .. } => todo!("loadarr"),
-        OpArg::StoreArr { .. } => todo!("storearr"),
+        OpArg::LoadArr { arr, idx } => {
+            let ptr = get_element_ptr(arr, idx, ctx);
+            Some(ctx.builder.build_load(ptr, ""))
+        }
+        OpArg::StoreArr { arr, idx, val } => {
+            let ptr = get_element_ptr(arr, idx, ctx);
+            let val = get_basic_value(val, ctx);
+            ctx.builder.build_store(ptr, val);
+            None
+        }
     };
     if let (Some(reg), Some(v)) = (quaruple.result, v) {
         store_value(v, reg, ctx);
