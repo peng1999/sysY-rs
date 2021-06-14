@@ -11,10 +11,10 @@ lalrpop_mod! {
     pub syntax
 }
 mod ast;
+mod backend;
 mod context;
 mod error;
 mod ir;
-mod llvm;
 mod sym_table;
 mod ty;
 
@@ -85,7 +85,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         if opts.emit.as_deref() == Some("llvm") {
-            llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
+            backend::llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
             break 'exit;
         }
 
@@ -95,7 +95,7 @@ fn main() -> anyhow::Result<()> {
             file
         });
 
-        llvm::emit_obj(ir_graph, &out_path, ctx);
+        backend::llvm::emit_obj(ir_graph, &out_path, ctx);
     }
     Ok(())
 }
