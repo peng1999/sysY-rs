@@ -45,6 +45,14 @@ impl TyBasic {
             }
         }
     }
+
+    pub fn byte_size(&self) -> u32 {
+        match self {
+            TyBasic::Int => 4,
+            TyBasic::Bool => 1,
+            TyBasic::Array(ty, n) => ty.byte_size() * n,
+        }
+    }
 }
 
 impl Display for TyBasic {

@@ -27,7 +27,7 @@ use crate::{context::Context, error::LogResult, ir::IrGraph, sym_table::Symbol};
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
-    #[clap(long, possible_values = &["ast", "ir", "mir", "llvm"])]
+    #[clap(long, possible_values = &["ast", "ir", "mir", "llvm", "riscv"])]
     emit: Option<String>,
 
     /// Output file
@@ -86,6 +86,11 @@ fn main() -> anyhow::Result<()> {
 
         if opts.emit.as_deref() == Some("llvm") {
             backend::llvm::emit_llvm_ir(ir_graph, &mut output, ctx)?;
+            break 'exit;
+        }
+
+        if opts.emit.as_deref() == Some("riscv") {
+            backend::riscv32::emit_asm(ir_graph, &mut output, ctx)?;
             break 'exit;
         }
 
