@@ -9,7 +9,7 @@ int main() {
     int zeroc = 48;
     int a = getchar() - zeroc;
     int b = getchar() - zeroc;
-    int arr[2][2];
+    int arr[3][2];
     int i = 0;
     while (i < 2) {
         int j = 0;

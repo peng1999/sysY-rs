@@ -14,17 +14,17 @@ if (-not $?) {
 }
 
 $compiler = Join-Path $targetRoot "debug/sysy-rs"
-$linker = Join-Path $PSScriptRoot "ld.sh"
+$myobj = "/tmp/main.o"
 $myexe = "/tmp/a.out"
 
 foreach ($cpp in $cpps) {
     clang++ -o $exe $cpp $lib
-    & $compiler -o /tmp/main.o $cpp
+    & $compiler -o $myobj $cpp
     if (-not $?) {
         Write-Error "[$($cpp.Name)] Compile error"
         continue
     }
-    sh $linker
+    clang -o $myexe $myobj
     $content = Get-Content $cpp
     for ($i = 0; $i -lt $content.Count; $i++) {
         $in = ""
