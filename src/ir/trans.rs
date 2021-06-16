@@ -201,13 +201,14 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
                 let mut ir_vec = IrVec::new(ctx.next_label());
                 ctx.sym_table.set_current_fn(fn_sym);
                 ctx.sym_begin_scope();
+                // Arg 指令必须在函数的开头
                 for (n, (ty, name)) in param.into_iter().enumerate() {
                     let sym = ctx.sym_insert(name).unwrap_or_log(ctx);
                     ctx.sym_table.ty_assert(sym, ty);
                     ir_vec.push(OpArg::Arg(n).with_result(Some(sym)));
                 }
                 trans_stmts(stmts, &mut ir_vec, ctx);
-                let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fun_ret_ty().unwrap();
+                let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fn_ret_ty();
                 if ret_ty == Ty::Void {
                     ir_vec.push(BranchOp::Ret(None));
                 }

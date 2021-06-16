@@ -35,7 +35,7 @@ impl From<TyBasic> for Ty {
 }
 
 impl TyBasic {
-    fn get_elem_ty_rank(&self) -> (TyBasic, usize) {
+    pub fn get_elem_ty_rank(&self) -> (TyBasic, usize) {
         match self {
             TyBasic::Int => (TyBasic::Int, 0),
             TyBasic::Bool => (TyBasic::Bool, 0),
@@ -87,10 +87,17 @@ impl PartialEq<TyBasic> for Ty {
 }
 
 impl Ty {
-    pub fn fun_ret_ty(&self) -> Option<Ty> {
+    pub fn fn_ret_ty(&self) -> Ty {
         match self {
-            Ty::Fn(_, ret_ty) => Some(*ret_ty.clone()),
-            _ => None,
+            Ty::Fn(_, ret_ty) => *ret_ty.clone(),
+            _ => panic!("only function has return type!"),
+        }
+    }
+
+    pub fn fn_args(&self) -> &[TyBasic] {
+        match self {
+            Ty::Fn(args, _) => args,
+            _ => panic!("only function has return type!"),
         }
     }
 
@@ -230,7 +237,7 @@ pub fn ty_check(fn_sym: Symbol, ir_vec: &IrVec, ctx: &mut Context) {
             }
             Ir::Branch(BranchOp::Ret(Some(value))) => {
                 let ty = ty_from_value(*value, ctx);
-                let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fun_ret_ty().unwrap();
+                let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fn_ret_ty();
                 if ty != ret_ty {
                     panic!("expect to return {}, found {}", ret_ty, ty);
                 }

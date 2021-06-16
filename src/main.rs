@@ -1,6 +1,7 @@
 #![feature(map_try_insert)]
 #![feature(result_cloned)]
 #![feature(label_break_value)]
+#![feature(bool_to_option)]
 #![allow(clippy::new_without_default)]
 
 #[macro_use]
