@@ -12,6 +12,7 @@ use crate::{
 };
 
 use self::RiscVReg::*;
+use crate::ir::UnaryOp;
 
 struct Context<'a> {
     sym_table: SymTable,
@@ -158,7 +159,7 @@ fn emit_call(
     fn_sym: Symbol,
     args: Vec<ir::Value>,
     ctx: &mut Context,
-) -> anyhow::Result<Option<RiscVReg>> {
+) -> anyhow::Result<Option<AsmValue>> {
     let arg_cnt = args.len() as i32;
     // store arguments
     for (i, arg) in args.into_iter().enumerate() {
@@ -180,7 +181,7 @@ fn emit_call(
         writeln!(ctx.file, "addi sp, sp, {}", (arg_cnt - 8) * 4)?;
     }
     let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fn_ret_ty();
-    Ok((ret_ty != Ty::Void).then_some(A0))
+    Ok((ret_ty != Ty::Void).then_some(AsmValue::Reg(A0)))
 }
 
 fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
@@ -190,16 +191,23 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
     let val = match quaruple.op {
         OpArg::Arg(n) => {
             if n < 8 {
-                Some(ARG_REGS[n])
+                Some(AsmValue::Reg(ARG_REGS[n]))
             } else {
                 let n = n as i32;
                 let offset = ctx.frame_size + (n - 8) * 4;
                 let ouput_reg = T6;
                 writeln!(ctx.file, "lw {}, {}(sp)", ouput_reg, offset)?;
-                Some(ouput_reg)
+                Some(AsmValue::Reg(ouput_reg))
             }
         }
-        OpArg::Unary { .. } => None,
+        OpArg::Unary { op, arg } => match op {
+            UnaryOp::Const => {
+                let val = ir_into_asm_value(arg, ctx);
+                let ouput_reg = T6;
+                emit_asm_value_to_reg(val, ouput_reg, ctx)?;
+                Some(AsmValue::Reg(ouput_reg))
+            },
+        },
         OpArg::Binary { .. } => None,
         OpArg::Call { fn_val, args } => emit_call(fn_val, args, ctx)?,
         OpArg::LoadArr { .. } => todo!("riscv array"),
@@ -208,11 +216,10 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
     if let (Some(result), Some(val)) = (quaruple.result, val) {
         match ctx.reg_alloc[&result] {
             AllocReg::Reg(reg) => {
-                writeln!(ctx.file, "mv {}, {}", reg, val)?;
+                emit_asm_value_to_reg(val, reg, ctx)?;
             }
             AllocReg::Stack(offset, size) => {
-                let op = op_store(size);
-                writeln!(ctx.file, "{} {}, {}(sp)", op, val, offset)?;
+                emit_asm_value_to_stack(val, (offset, size), ctx)?;
             }
         }
     }
