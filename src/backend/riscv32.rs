@@ -220,7 +220,22 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn emit_branch(branch_op: BranchOp, ctx: &mut Context) {}
+fn emit_branch(branch_op: BranchOp, name: &str, ctx: &mut Context) -> anyhow::Result<()> {
+    match branch_op {
+        BranchOp::Ret(v) => {
+            if let Some(v) = v {
+                let val = ir_into_asm_value(v, ctx);
+                emit_asm_value_to_reg(val, A0, ctx)?;
+            }
+            writeln!(ctx.file, "j .exit{}", name)?;
+        }
+        BranchOp::Goto(label) => {
+            writeln!(ctx.file, "j .{}", label)?;
+        }
+        BranchOp::CondGoto(_, _, _) => {}
+    }
+    Ok(())
+}
 
 /// 分配寄存器，确定栈帧结构
 fn allocate_register(fn_sym: Symbol, ctx: &mut Context) {
@@ -249,8 +264,8 @@ fn allocate_register(fn_sym: Symbol, ctx: &mut Context) {
 }
 
 fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> anyhow::Result<()> {
-    let name = ctx.sym_table.name_of(fn_sym).unwrap();
-    writeln!(ctx.file, "{}:", name)?;
+    let name = ctx.sym_table.name_of(fn_sym).unwrap().to_owned();
+    writeln!(ctx.file, ".globl {0}\n{0}:", name)?;
     allocate_register(fn_sym, ctx);
 
     // enter frame
@@ -259,13 +274,15 @@ fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> an
 
     for &label in &ir_graph.block_order {
         let ir_block = ir_graph.blocks.remove(&label).unwrap();
+        writeln!(ctx.file, ".{}:", label)?;
         for quaruple in ir_block.ir_list {
             emit_quaruple(quaruple, ctx)?;
         }
-        emit_branch(ir_block.exit, ctx);
+        emit_branch(ir_block.exit, &name, ctx)?;
     }
 
     // exit frame
+    writeln!(ctx.file, ".exit{}:", name)?;
     writeln!(ctx.file, "lw ra, {}(sp)", ctx.frame_size - 4)?;
     writeln!(ctx.file, "addi sp, sp, {}", ctx.frame_size)?;
     writeln!(ctx.file, "ret")?;
