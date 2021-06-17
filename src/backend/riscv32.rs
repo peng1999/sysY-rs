@@ -72,6 +72,15 @@ enum Operand {
     Const(i32),
 }
 
+impl Operand {
+    fn into_const(self) -> Option<i32> {
+        match self {
+            Operand::Const(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 impl Display for Operand {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -97,20 +106,11 @@ fn align_byte_works() {
     assert_eq!(align_byte_up(10, 4), 12);
 }
 
-fn op_store(size: u32) -> &'static str {
+fn size_suffix(size: u32) -> &'static str {
     match size {
-        1 => "sb", // byte
-        2 => "sh", // half word
-        4 => "sw", // word
-        _ => unimplemented!(),
-    }
-}
-
-fn op_load(size: u32) -> &'static str {
-    match size {
-        1 => "lb", // byte
-        2 => "lh", // half word
-        4 => "lw", // word
+        1 => "b", // byte
+        2 => "h", // half word
+        4 => "w", // word
         _ => unimplemented!(),
     }
 }
@@ -125,17 +125,31 @@ fn extract_const_val(val: ir::Value) -> i32 {
     }
 }
 
-fn emit_stack_as_reg(val: Operand, hint: RiscVReg, ctx: &mut Context) -> anyhow::Result<Operand> {
+/// Convert operand to Reg or Const
+fn emit_load_operand(val: Operand, hint: RiscVReg, ctx: &mut Context) -> anyhow::Result<Operand> {
     match val {
         Operand::Stack(offset, size) => {
-            let op = op_load(size);
-            writeln!(ctx.file, "{} {}, {}(sp)", op, hint, offset)?;
+            let s = size_suffix(size);
+            writeln!(ctx.file, "l{} {}, {}(sp)", s, hint, offset)?;
             Ok(Operand::Reg(hint))
         }
         op => Ok(op),
     }
 }
 
+/// Convert operand to Reg
+fn emit_operand_as_reg(val: Operand, hint: RiscVReg, ctx: &mut Context) -> anyhow::Result<RiscVReg> {
+    match emit_load_operand(val, hint, ctx)? {
+        Operand::Reg(r) => Ok(r),
+        Operand::Const(v) => {
+            writeln!(ctx.file, "li {}, {}", hint, v)?;
+            Ok(hint)
+        }
+        Operand::Stack(_, _) => unreachable!(),
+    }
+}
+
+/// Move operand to specific Reg
 fn emit_operand_to_reg(val: Operand, target: RiscVReg, ctx: &mut Context) -> anyhow::Result<()> {
     match val {
         Operand::Reg(r) => {
@@ -144,8 +158,8 @@ fn emit_operand_to_reg(val: Operand, target: RiscVReg, ctx: &mut Context) -> any
             }
         }
         Operand::Stack(offset, size) => {
-            let op = op_load(size);
-            writeln!(ctx.file, "{} {}, {}(sp)", op, target, offset)?;
+            let s = size_suffix(size);
+            writeln!(ctx.file, "l{} {}, {}(sp)", s, target, offset)?;
         }
         Operand::Const(v) => {
             writeln!(ctx.file, "li {}, {}", target, v)?;
@@ -154,20 +168,15 @@ fn emit_operand_to_reg(val: Operand, target: RiscVReg, ctx: &mut Context) -> any
     Ok(())
 }
 
+/// Store operand to specific stack position.
 fn emit_store_operand(
     val: Operand,
     (offset, size): (i32, u32),
     ctx: &mut Context,
 ) -> anyhow::Result<()> {
-    let reg = match val {
-        Operand::Reg(r) => r,
-        val @ (Operand::Stack(_, _) | Operand::Const(_)) => {
-            emit_operand_to_reg(val, T6, ctx)?;
-            T6
-        }
-    };
-    let op = op_store(size);
-    writeln!(ctx.file, "{} {}, {}(sp)", op, reg, offset)?;
+    let reg = emit_operand_as_reg(val, T6, ctx)?;
+    let s = size_suffix(size);
+    writeln!(ctx.file, "s{} {}, {}(sp)", s, reg, offset)?;
     Ok(())
 }
 
@@ -218,8 +227,6 @@ fn emit_call(
 fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
     use ir::{BinaryOp, OpArg, UnaryOp};
 
-    dbg!(quaruple.to_string());
-
     let target = quaruple.result.map(|result| ctx.reg_alloc[&result]);
     let target_reg = target.and_then(AllocReg::into_reg);
 
@@ -240,16 +247,19 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
         OpArg::Binary { op, arg1, arg2 } => {
             let op1 = ir_into_operand(arg1, ctx);
             let op2 = ir_into_operand(arg2, ctx);
-            emit_operand_to_reg(op1, T6, ctx)?;
-            let op1 = T6;
-            let op2 = emit_stack_as_reg(op2, T5, ctx)?;
+            let op1 = emit_operand_as_reg(op1, T6, ctx)?;
+            let op2 = emit_load_operand(op2, T5, ctx)?;
             let res = target_reg.unwrap_or(T6);
             match op {
                 BinaryOp::Add => {
                     writeln!(ctx.file, "add {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Sub => {
-                    writeln!(ctx.file, "sub {}, {}, {}", res, op1, op2)?;
+                    if let Some(val) = op2.into_const() {
+                        writeln!(ctx.file, "addi {}, {}, {}", res, op1, -val)?;
+                    } else {
+                        writeln!(ctx.file, "sub {}, {}, {}", res, op1, op2)?;
+                    }
                 }
                 BinaryOp::Mul => {
                     writeln!(ctx.file, "mul {}, {}, {}", res, op1, op2)?;
@@ -269,15 +279,17 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
                     writeln!(ctx.file, "slt {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Le => {
+                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "sgt {}, {}, {}", res, op1, op2)?;
-                    writeln!(ctx.file, "xori {0}, {0}", res)?;
+                    writeln!(ctx.file, "xori {0}, {0}, 1", res)?;
                 }
                 BinaryOp::Gt => {
+                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "sgt {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Ge => {
                     writeln!(ctx.file, "slt {}, {}, {}", res, op1, op2)?;
-                    writeln!(ctx.file, "xori {0}, {0}", res)?;
+                    writeln!(ctx.file, "xori {0}, {0}, 1", res)?;
                 }
             };
             Some(Operand::Reg(T6))
@@ -312,7 +324,12 @@ fn emit_branch(branch_op: BranchOp, name: &str, ctx: &mut Context) -> anyhow::Re
         BranchOp::Goto(label) => {
             writeln!(ctx.file, "j .{}", label)?;
         }
-        BranchOp::CondGoto(_, _, _) => {}
+        BranchOp::CondGoto(val, label_true, label_false) => {
+            let val = ir_into_operand(val, ctx);
+            let cond = emit_load_operand(val, T6, ctx)?;
+            writeln!(ctx.file, "beqz {}, .{}", cond, label_false)?;
+            writeln!(ctx.file, "j .{}", label_true)?;
+        }
     }
     Ok(())
 }
@@ -356,8 +373,10 @@ fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> an
         let ir_block = ir_graph.blocks.remove(&label).unwrap();
         writeln!(ctx.file, ".{}:", label)?;
         for quaruple in ir_block.ir_list {
+            dbg!(quaruple.to_string());
             emit_quaruple(quaruple, ctx)?;
         }
+        dbg!(ir_block.exit.to_string());
         emit_branch(ir_block.exit, &name, ctx)?;
     }
 
