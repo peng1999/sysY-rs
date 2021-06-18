@@ -13,6 +13,8 @@ if (-not $?) {
     return
 }
 
+make -C samples
+
 $compiler = Join-Path $targetRoot "debug/sysy-rs"
 $myobj = "/tmp/main.o"
 $myexe = "/tmp/a.out"
