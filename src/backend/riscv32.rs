@@ -138,7 +138,11 @@ fn emit_load_operand(val: Operand, hint: RiscVReg, ctx: &mut Context) -> anyhow:
 }
 
 /// Convert operand to Reg
-fn emit_operand_as_reg(val: Operand, hint: RiscVReg, ctx: &mut Context) -> anyhow::Result<RiscVReg> {
+fn emit_operand_as_reg(
+    val: Operand,
+    hint: RiscVReg,
+    ctx: &mut Context,
+) -> anyhow::Result<RiscVReg> {
     match emit_load_operand(val, hint, ctx)? {
         Operand::Reg(r) => Ok(r),
         Operand::Const(v) => {
@@ -193,6 +197,15 @@ fn ir_into_operand(val: ir::Value, ctx: &mut Context) -> Operand {
             Operand::Const(v)
         }
     }
+}
+
+fn emit_sub(res: RiscVReg, op1: RiscVReg, op2: Operand, ctx: &mut Context) -> anyhow::Result<()> {
+    if let Some(val) = op2.into_const() {
+        writeln!(ctx.file, "addi {}, {}, {}", res, op1, -val)?;
+    } else {
+        writeln!(ctx.file, "sub {}, {}, {}", res, op1, op2)?;
+    }
+    Ok(())
 }
 
 fn emit_call(
@@ -255,16 +268,14 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
                     writeln!(ctx.file, "add {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Sub => {
-                    if let Some(val) = op2.into_const() {
-                        writeln!(ctx.file, "addi {}, {}, {}", res, op1, -val)?;
-                    } else {
-                        writeln!(ctx.file, "sub {}, {}, {}", res, op1, op2)?;
-                    }
+                    emit_sub(res, op1, op2, ctx)?;
                 }
                 BinaryOp::Mul => {
+                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "mul {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Div => {
+                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "div {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Eq => {
@@ -272,7 +283,7 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
                     writeln!(ctx.file, "seqz {}, {}", res, T6)?;
                 }
                 BinaryOp::Ne => {
-                    writeln!(ctx.file, "sub {}, {}, {}", T6, op1, op2)?;
+                    emit_sub(T6, op1, op2, ctx)?;
                     writeln!(ctx.file, "snez {}, {}", res, T6)?;
                 }
                 BinaryOp::Lt => {
