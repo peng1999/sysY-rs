@@ -18,15 +18,28 @@ make -C samples
 $compiler = Join-Path $targetRoot "debug/sysy-rs"
 $myobj = "/tmp/main.o"
 $myexe = "/tmp/a.out"
+$myasm = "/tmp/main.s"
+$riscvexe = "/tmp/main1"
 
 foreach ($cpp in $cpps) {
-    clang++ -o $exe $cpp $lib
-    & $compiler -o $myobj $cpp
+    Write-Output "`n=== $($cpp.Name) ==="
+    # standard compiler
+    gcc -o $exe $cpp $lib
+    # llvm backend
+    & $compiler -o $myobj $cpp &&
+        gcc -o $myexe $myobj
     if (-not $?) {
         Write-Error "[$($cpp.Name)] Compile error"
         continue
     }
-    clang -o $myexe $myobj
+    # riscv32 backend
+    $riscvpass = $True
+    & $compiler -o $myasm --emit=riscv $cpp &&
+        pwsh samples/riscv32-elf-gcc.ps1 $myasm "main1"
+    if (-not $?) {
+        Write-Error "[$($cpp.Name)] RiscV Compile error"
+        $riscvpass = $False
+    }
     $content = Get-Content $cpp
     for ($i = 0; $i -lt $content.Count; $i++) {
         $in = ""
@@ -40,12 +53,20 @@ foreach ($cpp in $cpps) {
 
         $out = $in | & $myexe
         $mystatus = $LASTEXITCODE
+
+        $riscvdiff = $False
+        if ($riscvpass) {
+            $riscvout = $in | qemu-riscv32 $riscvexe
+            $riscvstatus = $LASTEXITCODE
+            $riscvdiff = ($riscvout -ne $truth) -or ($riscvstatus -ne $status)
+        }
+
+        Write-Output "[$($cpp.Name)] stdin: '$in' stdout: '$truth' = $status"
         if (($out -ne $truth) -or ($mystatus -ne $status)) {
-            Write-Error "[$($cpp.Name)] Opps! stdin: '$in'"
-            Write-Error "clang: '$truth' =$status"
-            Write-Error "sysy-rs: '$mytruth' =$mystatus"
-        } else {
-            Write-Output "[$($cpp.Name)] stdin: '$in' stdout: '$truth' = $status"
+            Write-Error "sysy-rs: '$out' =$mystatus"
+        }
+        if ($riscvdiff -and $riscvpass) {
+            Write-Error "riscv-back: '$riscvout' =$riscvstatus"
         }
     }
 }

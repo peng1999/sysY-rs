@@ -373,10 +373,10 @@ fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> an
         let ir_block = ir_graph.blocks.remove(&label).unwrap();
         writeln!(ctx.file, ".{}:", label)?;
         for quaruple in ir_block.ir_list {
-            dbg!(quaruple.to_string());
+            //dbg!(quaruple.to_string());
             emit_quaruple(quaruple, ctx)?;
         }
-        dbg!(ir_block.exit.to_string());
+        //dbg!(ir_block.exit.to_string());
         emit_branch(ir_block.exit, &name, ctx)?;
     }
 
