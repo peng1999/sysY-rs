@@ -1,5 +1,9 @@
 #!/usr/bin/pwsh
 
+function err($msg) {
+    $host.ui.WriteErrorLine($msg)
+}
+
 $cpps = Get-ChildItem $PSScriptRoot -Filter "test*.cpp"
 $lib = Join-Path $PSScriptRoot "sysy.a"
 $exe = "/tmp/main"
@@ -9,7 +13,7 @@ $targetRoot = $projectMeta.target_directory
 Write-Output "Project target: $targetRoot"
 cargo build
 if (-not $?) {
-    Write-Error "[cargo build] Error"
+    err "[cargo build] Error"
     return
 }
 
@@ -29,7 +33,7 @@ foreach ($cpp in $cpps) {
     & $compiler -o $myobj $cpp &&
         gcc -o $myexe $myobj
     if (-not $?) {
-        Write-Error "[$($cpp.Name)] Compile error"
+        err "[$($cpp.Name)] Compile error"
         continue
     }
     # riscv32 backend
@@ -37,7 +41,7 @@ foreach ($cpp in $cpps) {
     & $compiler -o $myasm --emit=riscv $cpp &&
         pwsh samples/riscv32-elf-gcc.ps1 $myasm "main1"
     if (-not $?) {
-        Write-Error "[$($cpp.Name)] RiscV Compile error"
+        err "RISC-V Compile error"
         $riscvpass = $False
     }
     $content = Get-Content $cpp
@@ -61,12 +65,12 @@ foreach ($cpp in $cpps) {
             $riscvdiff = ($riscvout -ne $truth) -or ($riscvstatus -ne $status)
         }
 
-        Write-Output "[$($cpp.Name)] stdin: '$in' stdout: '$truth' = $status"
+        Write-Output "stdin: '$in' stdout: '$truth' = $status"
         if (($out -ne $truth) -or ($mystatus -ne $status)) {
-            Write-Error "sysy-rs: '$out' =$mystatus"
+            err "sysy-rs: '$out' = $mystatus"
         }
         if ($riscvdiff -and $riscvpass) {
-            Write-Error "riscv-back: '$riscvout' =$riscvstatus"
+            err "riscv-back: '$riscvout' = $riscvstatus"
         }
     }
 }
