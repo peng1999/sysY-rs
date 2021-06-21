@@ -7,15 +7,17 @@ use std::{
 };
 
 use crate::{
-    backend::riscv32::reg_alloc::{emit_reg_alloc, emit_reg_alloc_tmp},
+    backend::riscv32::reg_alloc::{
+        emit_input_reg_alloc, emit_reg_alloc, emit_reg_alloc_tmp, emit_spill_all,
+    },
     context::Context as QContext,
     ir::{self, BranchOp, IrGraph, Quaruple},
+    opt,
     sym_table::{SymTable, Symbol},
     ty::Ty,
 };
 
 use self::{reg_alloc::LocalRegAllocator, RiscVReg::*};
-use crate::backend::riscv32::reg_alloc::emit_input_reg_alloc;
 
 struct Context<'a> {
     sym_table: SymTable,
@@ -53,21 +55,6 @@ impl Display for RiscVReg {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         let name = format!("{:?}", self);
         write!(fmt, "{}", name.to_ascii_lowercase())
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-enum AllocReg {
-    Reg(RiscVReg),
-    Stack(i32, u32), // offset of sp, size in stack
-}
-
-impl AllocReg {
-    fn into_reg(self) -> Option<RiscVReg> {
-        match self {
-            AllocReg::Reg(r) => Some(r),
-            AllocReg::Stack(_, _) => None,
-        }
     }
 }
 
@@ -231,7 +218,11 @@ fn emit_call(
             let target_offset = 4 * (i as i32 - arg_cnt);
             emit_store_operand(asm_value, Stack::new(target_offset, 4), ctx)?;
         };
+        if let Some(reg) = asm_value.into_reg() {
+            ctx.reg_allocator.reg_free(reg);
+        }
     }
+    emit_spill_all(ctx)?;
     if arg_cnt >= 8 {
         writeln!(ctx.file, "addi sp, sp, {}", -(arg_cnt - 8) * 4)?;
     }
@@ -346,7 +337,7 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
                 writeln!(ctx.file, "mv {}, {}", res, A0)?;
                 used_reg.push(res);
             }
-        },
+        }
         OpArg::LoadArr { .. } => todo!("riscv array"),
         OpArg::StoreArr { .. } => todo!("riscv array"),
     }
@@ -368,11 +359,14 @@ fn emit_branch(branch_op: BranchOp, name: &str, ctx: &mut Context) -> anyhow::Re
             writeln!(ctx.file, "j .exit{}", name)?;
         }
         BranchOp::Goto(label) => {
+            emit_spill_all(ctx)?;
             writeln!(ctx.file, "j .{}", label)?;
         }
         BranchOp::CondGoto(val, label_true, label_false) => {
             let val = emit_ir_into_operand(val, ctx)?;
             let cond = emit_operand_as_reg(val, ctx)?;
+            ctx.reg_allocator.reg_free(cond);
+            emit_spill_all(ctx)?;
             writeln!(ctx.file, "beqz {}, .{}", cond, label_false)?;
             writeln!(ctx.file, "j .{}", label_true)?;
         }
@@ -415,12 +409,16 @@ fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> an
     writeln!(ctx.file, "addi sp, sp, {}", -ctx.frame_size)?;
     writeln!(ctx.file, "sw ra, {}(sp)", ctx.frame_size - 4)?;
 
+    let non_locals = opt::find_block_nonlocal(&ir_graph);
+
     for &label in &ir_graph.block_order {
         let ir_block = ir_graph.blocks.remove(&label).unwrap();
-        ctx.reg_allocator = LocalRegAllocator::new(&ir_block.ir_list, Vec::from(TMP_REGS));
+        let used_list = opt::next_use_pos(&ir_block, non_locals.clone());
+        ctx.reg_allocator = LocalRegAllocator::new(used_list, Vec::from(TMP_REGS));
         writeln!(ctx.file, ".{}:", label)?;
         for quaruple in ir_block.ir_list {
             //dbg!(quaruple.to_string());
+            //dbg!(&ctx.reg_allocator);
             emit_quaruple(quaruple, ctx)?;
             ctx.reg_allocator.next_line();
         }

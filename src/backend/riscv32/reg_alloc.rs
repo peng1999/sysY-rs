@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{ir::Quaruple, opt, sym_table::Symbol};
+use crate::sym_table::Symbol;
 
 use super::{emit_load_stack, emit_store_operand, Context, Operand, RiscVReg};
 
@@ -19,10 +19,10 @@ pub struct LocalRegAllocator {
 }
 
 impl LocalRegAllocator {
-    pub(super) fn new(ir_list: &[Quaruple], regs: Vec<RiscVReg>) -> Self {
+    pub(super) fn new(used_list: HashMap<(Symbol, usize), usize>, regs: Vec<RiscVReg>) -> Self {
         Self {
             free_reg: regs,
-            next_use: opt::next_use_pos(ir_list),
+            next_use: used_list,
             ..Default::default()
         }
     }
@@ -58,6 +58,9 @@ impl LocalRegAllocator {
     pub(super) fn set_reg_as_input(&mut self, reg: RiscVReg, sym: Symbol) {
         let free_reg = self.free_reg.pop().unwrap();
         assert_eq!(free_reg, reg);
+        if let Some(reg) = self.find_sym(sym) {
+            self.reg_free(reg);
+        }
         self.reg_lookup.insert(reg, sym);
     }
 
@@ -69,17 +72,32 @@ impl LocalRegAllocator {
     }
 
     /// 逐出寄存器，但不写回
-    fn spil_furthest_sym(&mut self) -> (RiscVReg, Symbol) {
-        let line = self.current_line;
+    fn spill_furthest_sym(&mut self) -> (RiscVReg, Symbol) {
         let (&reg, &sym) = self
             .reg_lookup
             .iter()
             .max_by_key(|&(reg, _)| self.reg_next_use[reg])
             .unwrap();
         self.reg_lookup.remove(&reg);
+        self.reg_next_use.remove(&reg);
         self.free_reg.push(reg);
         (reg, sym)
     }
+
+    fn spill_all(&mut self) -> Vec<(RiscVReg, Symbol)> {
+        self.reg_next_use.clear();
+        let keys = self.reg_lookup.drain().collect::<Vec<_>>();
+        self.free_reg.extend(keys.iter().map(|(reg, _)| reg));
+        keys
+    }
+}
+
+pub(super) fn emit_spill_all(ctx: &mut Context) -> anyhow::Result<()> {
+    let kv = ctx.reg_allocator.spill_all();
+    for (reg, sym) in kv {
+        emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&sym], ctx)?;
+    }
+    Ok(())
 }
 
 /// 分配寄存器，不读初值
@@ -87,7 +105,7 @@ pub(super) fn emit_reg_alloc_tmp(ctx: &mut Context) -> anyhow::Result<RiscVReg> 
     let reg = if let Some(reg) = ctx.reg_allocator.free_reg.pop() {
         reg
     } else {
-        let (reg, sym) = ctx.reg_allocator.spil_furthest_sym();
+        let (reg, sym) = ctx.reg_allocator.spill_furthest_sym();
         emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&sym], ctx)?;
         reg
     };
@@ -112,7 +130,7 @@ pub(super) fn emit_input_reg_alloc(sym: Symbol, ctx: &mut Context) -> anyhow::Re
         ctx.reg_allocator.reg_lookup.insert(reg, sym);
         reg
     } else {
-        let (reg, out_sym) = ctx.reg_allocator.spil_furthest_sym();
+        let (reg, out_sym) = ctx.reg_allocator.spill_furthest_sym();
         emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&out_sym], ctx)?;
         reg
     };

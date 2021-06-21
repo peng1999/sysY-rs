@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ir::{IrGraph, OpArg, Quaruple},
+    ir::{BranchOp, IrBlock, IrGraph, OpArg, Quaruple},
     sym_table::Symbol,
 };
 
@@ -21,7 +21,14 @@ fn collect_ir_op(ir: &Quaruple, set: &mut impl Extend<Symbol>) {
     }
 }
 
-pub fn find_block_local(ir_graph: &IrGraph) -> Vec<Symbol> {
+fn sym_in_branch(br: &BranchOp) -> Option<Symbol> {
+    match br {
+        BranchOp::CondGoto(v, _, _) => v.into_reg(),
+        _ => None,
+    }
+}
+
+pub fn find_block_nonlocal(ir_graph: &IrGraph) -> Vec<Symbol> {
     let mut counter = HashMap::new();
 
     for (_, block) in &ir_graph.blocks {
@@ -29,6 +36,9 @@ pub fn find_block_local(ir_graph: &IrGraph) -> Vec<Symbol> {
         for ir in &block.ir_list {
             collect_ir_op(ir, &mut var_set);
             var_set.extend(ir.result.iter());
+        }
+        if let Some(sym) = sym_in_branch(&block.exit) {
+            var_set.insert(sym);
         }
 
         for sym in var_set {
@@ -38,17 +48,24 @@ pub fn find_block_local(ir_graph: &IrGraph) -> Vec<Symbol> {
 
     counter
         .into_iter()
-        .filter_map(|(sym, cnt)| (cnt == 1).then_some(sym))
+        .filter_map(|(sym, cnt)| (cnt > 1).then_some(sym))
         .collect::<Vec<_>>()
 }
 
-pub fn next_use_pos(ir_list: &[Quaruple]) -> HashMap<(Symbol, usize), usize> {
-    let mut last_use = HashMap::new();
+pub fn next_use_pos(ir_block: &IrBlock, non_locals: Vec<Symbol>) -> HashMap<(Symbol, usize), usize> {
+    let mut last_use = sym_in_branch(&ir_block.exit)
+        .into_iter()
+        .chain(non_locals)
+        .map(|s| (s, ir_block.ir_list.len()))
+        .collect::<HashMap<_, _>>();
     let mut next_use = HashMap::new();
-    for (i, ir) in ir_list.iter().enumerate().rev() {
+    for (i, ir) in ir_block.ir_list.iter().enumerate().rev() {
         let mut args = vec![];
         collect_ir_op(ir, &mut args);
 
+        if let OpArg::Call { .. } = ir.op {
+            last_use.clear();
+        }
         if let Some(ret) = ir.result {
             last_use.remove(&ret);
         }
