@@ -32,7 +32,7 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
             BinaryOp::from_ast_op(op).with_arg(lval, rval)
         }
         ExprKind::Call(fn_sym, args) => {
-            let fun_val = trans_expr_val(fn_sym, ir_vec, ctx).unwrap_reg();
+            let fun_val = trans_expr_val(fn_sym, ir_vec, ctx).into_reg().unwrap();
             let args_val = args
                 .into_iter()
                 .map(|e| trans_expr_val(e, ir_vec, ctx))
@@ -40,7 +40,7 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
             OpArg::call(fun_val, args_val)
         }
         ExprKind::Index(arr, idx) => {
-            let arr_val = trans_expr_val(arr, ir_vec, ctx).unwrap_reg();
+            let arr_val = trans_expr_val(arr, ir_vec, ctx).into_reg().unwrap();
             let idx_val = idx
                 .into_iter()
                 .map(|e| trans_expr_val(e, ir_vec, ctx))
@@ -134,7 +134,7 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
                 }
                 ExprKind::Index(arr, idx) => {
                     let val = trans_expr_val(expr, ir_vec, ctx);
-                    let ident = trans_expr_val(arr, ir_vec, ctx).unwrap_reg();
+                    let ident = trans_expr_val(arr, ir_vec, ctx).into_reg().unwrap();
                     let idx_val = idx
                         .into_iter()
                         .map(|e| trans_expr_val(e, ir_vec, ctx))

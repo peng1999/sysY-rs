@@ -1,3 +1,5 @@
+mod reg_alloc;
+
 use std::{
     collections::HashMap,
     fmt::{Display, Formatter},
@@ -5,20 +7,24 @@ use std::{
 };
 
 use crate::{
+    backend::riscv32::reg_alloc::{emit_reg_alloc, emit_reg_alloc_tmp},
     context::Context as QContext,
     ir::{self, BranchOp, IrGraph, Quaruple},
     sym_table::{SymTable, Symbol},
     ty::Ty,
 };
 
-use self::RiscVReg::*;
+use self::{reg_alloc::LocalRegAllocator, RiscVReg::*};
+use crate::backend::riscv32::reg_alloc::emit_input_reg_alloc;
 
 struct Context<'a> {
     sym_table: SymTable,
     file: &'a mut dyn Write,
 
     frame_size: i32,
-    reg_alloc: HashMap<Symbol, AllocReg>,
+    /// 给Symbol分配的栈上地址
+    stack_alloc: HashMap<Symbol, Stack>,
+    reg_allocator: LocalRegAllocator,
 }
 
 impl<'a> Context<'a> {
@@ -26,22 +32,22 @@ impl<'a> Context<'a> {
         Context {
             sym_table: ctx.sym_table,
             file,
-            reg_alloc: HashMap::new(),
             frame_size: 0,
+            stack_alloc: HashMap::new(),
+            reg_allocator: Default::default(),
         }
     }
 }
 
 #[rustfmt::skip]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 enum RiscVReg {
-    // t5, t6: 临时寄存器
     A0, A1, A2, A3, A4, A5, A6, A7,
-    /*T0, T1, T2, T3, T4, */T5, T6,
+    T0, T1, T2, T3, T4, T5, T6,
 }
 
 const ARG_REGS: &[RiscVReg] = &[A0, A1, A2, A3, A4, A5, A6, A7];
-//const TMP_REGS: &[RiscVReg] = &[T0, T1, T2, T3, T4, T5, T6];
+const TMP_REGS: &[RiscVReg] = &[T0, T1, T2, T3, T4, T5, T6];
 
 impl Display for RiscVReg {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -66,13 +72,31 @@ impl AllocReg {
 }
 
 #[derive(Debug, Copy, Clone)]
+struct Stack {
+    offset: i32,
+    size: u32,
+}
+
+impl Stack {
+    fn new(offset: i32, size: u32) -> Self {
+        Self { offset, size }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 enum Operand {
     Reg(RiscVReg),
-    Stack(i32, u32),
     Const(i32),
 }
 
 impl Operand {
+    fn into_reg(self) -> Option<RiscVReg> {
+        match self {
+            Operand::Reg(reg) => Some(reg),
+            _ => None,
+        }
+    }
+
     fn into_const(self) -> Option<i32> {
         match self {
             Operand::Const(v) => Some(v),
@@ -85,7 +109,6 @@ impl Display for Operand {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Operand::Reg(r) => write!(fmt, "{}", r),
-            Operand::Stack(offset, _) => write!(fmt, "{}(sp)", offset),
             Operand::Const(v) => write!(fmt, "{}", v),
         }
     }
@@ -125,31 +148,15 @@ fn extract_const_val(val: ir::Value) -> i32 {
     }
 }
 
-/// Convert operand to Reg or Const
-fn emit_load_operand(val: Operand, hint: RiscVReg, ctx: &mut Context) -> anyhow::Result<Operand> {
-    match val {
-        Operand::Stack(offset, size) => {
-            let s = size_suffix(size);
-            writeln!(ctx.file, "l{} {}, {}(sp)", s, hint, offset)?;
-            Ok(Operand::Reg(hint))
-        }
-        op => Ok(op),
-    }
-}
-
 /// Convert operand to Reg
-fn emit_operand_as_reg(
-    val: Operand,
-    hint: RiscVReg,
-    ctx: &mut Context,
-) -> anyhow::Result<RiscVReg> {
-    match emit_load_operand(val, hint, ctx)? {
+fn emit_operand_as_reg(val: Operand, ctx: &mut Context) -> anyhow::Result<RiscVReg> {
+    match val {
         Operand::Reg(r) => Ok(r),
         Operand::Const(v) => {
-            writeln!(ctx.file, "li {}, {}", hint, v)?;
-            Ok(hint)
+            let t1 = emit_reg_alloc_tmp(ctx)?;
+            writeln!(ctx.file, "li {}, {}", t1, v)?;
+            Ok(t1)
         }
-        Operand::Stack(_, _) => unreachable!(),
     }
 }
 
@@ -161,10 +168,6 @@ fn emit_operand_to_reg(val: Operand, target: RiscVReg, ctx: &mut Context) -> any
                 writeln!(ctx.file, "mv {}, {}", target, r)?;
             }
         }
-        Operand::Stack(offset, size) => {
-            let s = size_suffix(size);
-            writeln!(ctx.file, "l{} {}, {}(sp)", s, target, offset)?;
-        }
         Operand::Const(v) => {
             writeln!(ctx.file, "li {}, {}", target, v)?;
         }
@@ -172,31 +175,35 @@ fn emit_operand_to_reg(val: Operand, target: RiscVReg, ctx: &mut Context) -> any
     Ok(())
 }
 
+/// load operand to Reg
+fn emit_load_stack(val: Stack, target: RiscVReg, ctx: &mut Context) -> anyhow::Result<RiscVReg> {
+    let s = size_suffix(val.size);
+    writeln!(ctx.file, "l{} {}, {}(sp)", s, target, val.offset)?;
+    Ok(target)
+}
+
 /// Store operand to specific stack position.
-fn emit_store_operand(
-    val: Operand,
-    (offset, size): (i32, u32),
-    ctx: &mut Context,
-) -> anyhow::Result<()> {
-    let reg = emit_operand_as_reg(val, T6, ctx)?;
-    let s = size_suffix(size);
-    writeln!(ctx.file, "s{} {}, {}(sp)", s, reg, offset)?;
+fn emit_store_operand(val: Operand, stack: Stack, ctx: &mut Context) -> anyhow::Result<()> {
+    let reg = emit_operand_as_reg(val, ctx)?;
+    let s = size_suffix(stack.size);
+    writeln!(ctx.file, "s{} {}, {}(sp)", s, reg, stack.offset)?;
     Ok(())
 }
 
-fn ir_into_operand(val: ir::Value, ctx: &mut Context) -> Operand {
+fn emit_ir_into_operand(val: ir::Value, ctx: &mut Context) -> anyhow::Result<Operand> {
     use ir::Value::*;
 
-    match val {
-        Reg(r) => match ctx.reg_alloc[&r] {
-            AllocReg::Reg(reg) => Operand::Reg(reg),
-            AllocReg::Stack(offset, size) => Operand::Stack(offset, size),
-        },
+    let val = match val {
+        Reg(r) => {
+            let reg = emit_reg_alloc(r, ctx)?;
+            Operand::Reg(reg)
+        }
         v @ (Int(_) | Bool(_)) => {
             let v = extract_const_val(v);
             Operand::Const(v)
         }
-    }
+    };
+    Ok(val)
 }
 
 fn emit_sub(res: RiscVReg, op1: RiscVReg, op2: Operand, ctx: &mut Context) -> anyhow::Result<()> {
@@ -212,17 +219,17 @@ fn emit_call(
     fn_sym: Symbol,
     args: Vec<ir::Value>,
     ctx: &mut Context,
-) -> anyhow::Result<Option<Operand>> {
+) -> anyhow::Result<Option<RiscVReg>> {
     let arg_cnt = args.len() as i32;
     // store arguments
     for (i, arg) in args.into_iter().enumerate() {
-        let asm_value = ir_into_operand(arg, ctx);
+        let asm_value = emit_ir_into_operand(arg, ctx)?;
         if i < 8 {
             let target = ARG_REGS[i];
             emit_operand_to_reg(asm_value, target, ctx)?;
         } else {
             let target_offset = 4 * (i as i32 - arg_cnt);
-            emit_store_operand(asm_value, (target_offset, 4), ctx)?;
+            emit_store_operand(asm_value, Stack::new(target_offset, 4), ctx)?;
         };
     }
     if arg_cnt >= 8 {
@@ -234,35 +241,62 @@ fn emit_call(
         writeln!(ctx.file, "addi sp, sp, {}", (arg_cnt - 8) * 4)?;
     }
     let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fn_ret_ty();
-    Ok((ret_ty != Ty::Void).then_some(Operand::Reg(A0)))
+    Ok((ret_ty != Ty::Void).then_some(A0))
 }
 
 fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
     use ir::{BinaryOp, OpArg, UnaryOp};
 
-    let target = quaruple.result.map(|result| ctx.reg_alloc[&result]);
-    let target_reg = target.and_then(AllocReg::into_reg);
+    let mut used_reg = vec![];
 
-    let val = match quaruple.op {
+    match quaruple.op {
         OpArg::Arg(n) => {
-            let val = if n < 8 {
-                Operand::Reg(ARG_REGS[n])
+            let target = if let Some(result) = quaruple.result {
+                emit_input_reg_alloc(result, ctx)?
+            } else {
+                let reg = emit_reg_alloc_tmp(ctx)?;
+                ctx.reg_allocator.reg_free(reg);
+                reg
+            };
+
+            if n < 8 {
+                writeln!(ctx.file, "mv {}, {}", target, ARG_REGS[n])?;
             } else {
                 let n = n as i32;
                 let offset = ctx.frame_size + (n - 8) * 4;
-                Operand::Stack(offset, 4)
+                let op = Stack::new(offset, 4);
+                emit_load_stack(op, target, ctx)?;
             };
-            Some(val)
+            used_reg.push(target);
         }
         OpArg::Unary { op, arg } => match op {
-            UnaryOp::Const => Some(ir_into_operand(arg, ctx)),
+            UnaryOp::Const => {
+                let target_op = emit_ir_into_operand(arg, ctx)?;
+                let reg = emit_operand_as_reg(target_op, ctx)?;
+                ctx.reg_allocator.reg_free(reg);
+                if let Some(result) = quaruple.result {
+                    ctx.reg_allocator.set_reg_as_input(reg, result);
+                }
+                used_reg.push(reg);
+            }
         },
         OpArg::Binary { op, arg1, arg2 } => {
-            let op1 = ir_into_operand(arg1, ctx);
-            let op2 = ir_into_operand(arg2, ctx);
-            let op1 = emit_operand_as_reg(op1, T6, ctx)?;
-            let op2 = emit_load_operand(op2, T5, ctx)?;
-            let res = target_reg.unwrap_or(T6);
+            let op2_should_be_reg = [BinaryOp::Mul, BinaryOp::Div, BinaryOp::Le, BinaryOp::Gt];
+            if quaruple.result.is_none() {
+                return Ok(());
+            }
+            let op1 = emit_ir_into_operand(arg1, ctx)?;
+            let mut op2 = emit_ir_into_operand(arg2, ctx)?;
+            let op1 = emit_operand_as_reg(op1, ctx)?;
+            if op2_should_be_reg.contains(&op) {
+                op2 = Operand::Reg(emit_operand_as_reg(op2, ctx)?);
+            }
+            ctx.reg_allocator.reg_free(op1);
+            if let Some(reg) = op2.into_reg() {
+                ctx.reg_allocator.reg_free(reg);
+                used_reg.push(reg);
+            }
+            let res = emit_input_reg_alloc(quaruple.result.unwrap(), ctx)?;
             match op {
                 BinaryOp::Add => {
                     writeln!(ctx.file, "add {}, {}, {}", res, op1, op2)?;
@@ -271,31 +305,31 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
                     emit_sub(res, op1, op2, ctx)?;
                 }
                 BinaryOp::Mul => {
-                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "mul {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Div => {
-                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "div {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Eq => {
-                    writeln!(ctx.file, "sub {}, {}, {}", T6, op1, op2)?;
-                    writeln!(ctx.file, "seqz {}, {}", res, T6)?;
+                    let t = emit_reg_alloc_tmp(ctx)?;
+                    ctx.reg_allocator.reg_free(t);
+                    writeln!(ctx.file, "sub {}, {}, {}", t, op1, op2)?;
+                    writeln!(ctx.file, "seqz {}, {}", res, t)?;
                 }
                 BinaryOp::Ne => {
-                    emit_sub(T6, op1, op2, ctx)?;
-                    writeln!(ctx.file, "snez {}, {}", res, T6)?;
+                    let t = emit_reg_alloc_tmp(ctx)?;
+                    ctx.reg_allocator.reg_free(t);
+                    emit_sub(t, op1, op2, ctx)?;
+                    writeln!(ctx.file, "snez {}, {}", res, t)?;
                 }
                 BinaryOp::Lt => {
                     writeln!(ctx.file, "slt {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Le => {
-                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "sgt {}, {}, {}", res, op1, op2)?;
                     writeln!(ctx.file, "xori {0}, {0}, 1", res)?;
                 }
                 BinaryOp::Gt => {
-                    let op2 = emit_operand_as_reg(op2, T5, ctx)?;
                     writeln!(ctx.file, "sgt {}, {}, {}", res, op1, op2)?;
                 }
                 BinaryOp::Ge => {
@@ -303,21 +337,22 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
                     writeln!(ctx.file, "xori {0}, {0}, 1", res)?;
                 }
             };
-            Some(Operand::Reg(T6))
+            used_reg.extend([res, op1]);
         }
-        OpArg::Call { fn_val, args } => emit_call(fn_val, args, ctx)?,
+        OpArg::Call { fn_val, args } => {
+            let a0 = emit_call(fn_val, args, ctx)?;
+            if let (Some(result), Some(A0)) = (quaruple.result, a0) {
+                let res = emit_input_reg_alloc(result, ctx)?;
+                writeln!(ctx.file, "mv {}, {}", res, A0)?;
+                used_reg.push(res);
+            }
+        },
         OpArg::LoadArr { .. } => todo!("riscv array"),
         OpArg::StoreArr { .. } => todo!("riscv array"),
-    };
-    if let (Some(result), Some(val)) = (quaruple.result, val) {
-        match ctx.reg_alloc[&result] {
-            AllocReg::Reg(reg) => {
-                emit_operand_to_reg(val, reg, ctx)?;
-            }
-            AllocReg::Stack(offset, size) => {
-                emit_store_operand(val, (offset, size), ctx)?;
-            }
-        }
+    }
+
+    for reg in used_reg {
+        ctx.reg_allocator.finish_read(reg);
     }
 
     Ok(())
@@ -327,7 +362,7 @@ fn emit_branch(branch_op: BranchOp, name: &str, ctx: &mut Context) -> anyhow::Re
     match branch_op {
         BranchOp::Ret(v) => {
             if let Some(v) = v {
-                let val = ir_into_operand(v, ctx);
+                let val = emit_ir_into_operand(v, ctx)?;
                 emit_operand_to_reg(val, A0, ctx)?;
             }
             writeln!(ctx.file, "j .exit{}", name)?;
@@ -336,8 +371,8 @@ fn emit_branch(branch_op: BranchOp, name: &str, ctx: &mut Context) -> anyhow::Re
             writeln!(ctx.file, "j .{}", label)?;
         }
         BranchOp::CondGoto(val, label_true, label_false) => {
-            let val = ir_into_operand(val, ctx);
-            let cond = emit_load_operand(val, T6, ctx)?;
+            let val = emit_ir_into_operand(val, ctx)?;
+            let cond = emit_operand_as_reg(val, ctx)?;
             writeln!(ctx.file, "beqz {}, .{}", cond, label_false)?;
             writeln!(ctx.file, "j .{}", label_true)?;
         }
@@ -346,7 +381,7 @@ fn emit_branch(branch_op: BranchOp, name: &str, ctx: &mut Context) -> anyhow::Re
 }
 
 /// 分配寄存器，确定栈帧结构
-fn allocate_register(fn_sym: Symbol, ctx: &mut Context) {
+fn allocate_stack_frame(fn_sym: Symbol, ctx: &mut Context) {
     // stack structure:
     // |   ra   | align 16
     // |  vars  | align sizeof(var)
@@ -361,10 +396,10 @@ fn allocate_register(fn_sym: Symbol, ctx: &mut Context) {
         let size = ty.byte_size() as i32;
         let item_size = ty.get_elem_ty_rank().0.byte_size();
         let offset = align_byte_up(sp, size);
-        alloc.insert(local, AllocReg::Stack(offset, item_size));
+        alloc.insert(local, Stack::new(offset, item_size));
         sp = offset + size;
     }
-    ctx.reg_alloc = alloc;
+    ctx.stack_alloc = alloc;
     // saved ra at top of the frame
     sp += 4;
     // frame are 16-byte aligned
@@ -374,7 +409,7 @@ fn allocate_register(fn_sym: Symbol, ctx: &mut Context) {
 fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> anyhow::Result<()> {
     let name = ctx.sym_table.name_of(fn_sym).unwrap().to_owned();
     writeln!(ctx.file, ".globl {0}\n{0}:", name)?;
-    allocate_register(fn_sym, ctx);
+    allocate_stack_frame(fn_sym, ctx);
 
     // enter frame
     writeln!(ctx.file, "addi sp, sp, {}", -ctx.frame_size)?;
@@ -382,10 +417,12 @@ fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> an
 
     for &label in &ir_graph.block_order {
         let ir_block = ir_graph.blocks.remove(&label).unwrap();
+        ctx.reg_allocator = LocalRegAllocator::new(&ir_block.ir_list, Vec::from(TMP_REGS));
         writeln!(ctx.file, ".{}:", label)?;
         for quaruple in ir_block.ir_list {
             //dbg!(quaruple.to_string());
             emit_quaruple(quaruple, ctx)?;
+            ctx.reg_allocator.next_line();
         }
         //dbg!(ir_block.exit.to_string());
         emit_branch(ir_block.exit, &name, ctx)?;

@@ -16,6 +16,7 @@ mod backend;
 mod context;
 mod error;
 mod ir;
+mod opt;
 mod sym_table;
 mod ty;
 

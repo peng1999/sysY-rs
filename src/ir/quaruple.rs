@@ -39,7 +39,7 @@ pub enum UnaryOp {
     Const,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum BinaryOp {
     Add,
     Sub,

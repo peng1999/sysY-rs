@@ -91,10 +91,10 @@ impl From<Symbol> for Value {
 }
 
 impl Value {
-    pub fn unwrap_reg(self) -> Symbol {
+    pub fn into_reg(self) -> Option<Symbol> {
         match self {
-            Value::Reg(s) => s,
-            o => panic!("Expected Value, found {:?}", o),
+            Value::Reg(s) => Some(s),
+            _ => None,
         }
     }
 }
