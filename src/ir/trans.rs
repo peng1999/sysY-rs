@@ -1,7 +1,7 @@
 use either::{Either, Left, Right};
 
 use crate::{
-    ast::{Expr, ExprKind, FnHead, Item, Stmt},
+    ast::{self, Expr, ExprKind, FnHead, Item, Stmt},
     context::Context,
     error::LogResult,
     ir::{IrVec, OpArg},
@@ -12,14 +12,37 @@ use crate::{
 use super::{BinaryOp, BranchOp, UnaryOp, Value};
 
 /// Return a `Right(Value)`, or `Left(Expr)` if `expr` is not a atom.
-fn atom_to_value(expr: Expr, ctx: &mut Context) -> Either<Expr, Value> {
-    match *expr {
+fn trans_atom_value(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> Either<Expr, Value> {
+    let span = expr.span();
+    match *expr.inner {
         ExprKind::Ident(name) => {
-            let ident = ctx.sym_lookup_or_panic(name, expr.span());
+            let ident = ctx.sym_lookup_or_panic(name, span);
             Right(ident.into())
         }
         ExprKind::IntLit(v) => Right(Value::Int(v)),
         ExprKind::BoolLit(v) => Right(Value::Bool(v)),
+        ExprKind::Binary(op @ (ast::BinOp::And | ast::BinOp::Or), lhs, rhs) => {
+            let is_and = op == ast::BinOp::And;
+            let res = ctx.sym_table.gen_var_symbol();
+            let lhs_op = trans_expr_place(lhs, ir_vec, ctx);
+            ir_vec.push(lhs_op.with_result(Some(res)));
+            let label_true = ctx.next_label();
+            let label_false = ctx.next_label();
+            ir_vec.push(BranchOp::CondGoto(res.into(), label_true, label_false));
+            if is_and {
+                ir_vec.push(label_true);
+            } else {
+                ir_vec.push(label_false);
+            }
+            let rhs_v = trans_expr_place(rhs, ir_vec, ctx);
+            ir_vec.push(rhs_v.with_result(Some(res)));
+            if is_and {
+                ir_vec.push(label_false);
+            } else {
+                ir_vec.push(label_true);
+            }
+            Right(res.into())
+        }
         _ => Left(expr),
     }
 }
@@ -55,14 +78,14 @@ fn trans_compond_expr(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpAr
 /// Translate a expr when result is unknown or unneeded.
 #[must_use]
 fn trans_expr_place(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> OpArg {
-    match atom_to_value(expr, ctx) {
+    match trans_atom_value(expr, ir_vec, ctx) {
         Right(val) => UnaryOp::Const.with_arg(val),
         Left(expr) => trans_compond_expr(expr, ir_vec, ctx),
     }
 }
 
 fn trans_expr_val(expr: Expr, ir_vec: &mut IrVec, ctx: &mut Context) -> Value {
-    match atom_to_value(expr, ctx) {
+    match trans_atom_value(expr, ir_vec, ctx) {
         Right(val) => val,
         Left(expr) => {
             let result = ctx.sym_table.gen_const_symbol();

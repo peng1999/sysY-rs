@@ -9,7 +9,7 @@ grammar(ctx: &mut Context<'input>);
 
 match {
     "(", ")", "{", "}", "[", "]", ";", ",",
-    "==", "!=", "<", ">", "<=", ">=", "=",
+    "==", "!=", "<", ">", "<=", ">=", "=", "||", "&&",
     "+", "-", "*", "/", "!", "%",
     "if", "else", "while", "return", "true", "false", "break", "continue",
     r"[a-zA-Z][a-zA-Z0-9]*",
@@ -95,7 +95,14 @@ Decl: ast::Stmt = {
     },
 }
 
-Expr: ast::Expr = CmpExpr;
+Expr: ast::Expr = LogicExpr;
+
+LogicExpr = {
+    CmpExpr,
+    Spanned<LogicExprKind>,
+}
+LogicExprKind: ast::ExprKind =
+    <l:LogicExpr> <op:LogicOp> <r:CmpExpr> => ast::ExprKind::Binary(op, l, r);
 
 CmpExpr = {
     AddExpr,
@@ -189,4 +196,9 @@ CmpOp: ast::BinOp = {
    "<=" => ast::BinOp::Le,
    ">"  => ast::BinOp::Gt,
    ">=" => ast::BinOp::Ge,
+}
+
+LogicOp: ast::BinOp = {
+    "&&" => ast::BinOp::And,
+    "||" => ast::BinOp::Or,
 }

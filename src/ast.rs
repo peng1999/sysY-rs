@@ -8,7 +8,7 @@ pub type IString = string_interner::DefaultSymbol;
 #[derive(Debug)]
 pub struct Spanned<T> {
     span: (usize, usize),
-    inner: Box<T>,
+    pub inner: Box<T>,
 }
 
 impl<T> Deref for Spanned<T> {
@@ -75,7 +75,7 @@ pub enum ExprKind {
     BoolLit(bool),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum BinOp {
     Add,
     Sub,

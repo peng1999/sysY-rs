@@ -90,7 +90,8 @@ impl BinaryOp {
             ast::BinOp::Le => BinaryOp::Le,
             ast::BinOp::Gt => BinaryOp::Gt,
             ast::BinOp::Ge => BinaryOp::Ge,
-            _ => todo!(),
+            ast::BinOp::And | ast::BinOp::Or => panic!(),
+            _ => todo!("rem"),
         }
     }
     pub fn with_arg(self, arg1: Value, arg2: Value) -> OpArg {
