@@ -304,7 +304,7 @@ fn emit_quaruple(quaruple: Quaruple, ctx: &mut Context) -> anyhow::Result<()> {
                 BinaryOp::Eq => {
                     let t = emit_reg_alloc_tmp(ctx)?;
                     ctx.reg_allocator.reg_free(t);
-                    writeln!(ctx.file, "sub {}, {}, {}", t, op1, op2)?;
+                    emit_sub(t, op1, op2, ctx)?;
                     writeln!(ctx.file, "seqz {}, {}", res, t)?;
                 }
                 BinaryOp::Ne => {
@@ -413,7 +413,7 @@ fn emit_function(mut ir_graph: IrGraph, fn_sym: Symbol, ctx: &mut Context) -> an
 
     for &label in &ir_graph.block_order {
         let ir_block = ir_graph.blocks.remove(&label).unwrap();
-        let used_list = opt::next_use_pos(&ir_block, non_locals.clone());
+        let used_list = opt::next_use_pos(&ir_block, &non_locals);
         ctx.reg_allocator = LocalRegAllocator::new(used_list, Vec::from(TMP_REGS));
         writeln!(ctx.file, ".{}:", label)?;
         for quaruple in ir_block.ir_list {

@@ -52,13 +52,20 @@ pub fn find_block_nonlocal(ir_graph: &IrGraph) -> Vec<Symbol> {
         .collect::<Vec<_>>()
 }
 
-pub fn next_use_pos(ir_block: &IrBlock, non_locals: Vec<Symbol>) -> HashMap<(Symbol, usize), usize> {
+pub fn next_use_pos(ir_block: &IrBlock, non_locals: &[Symbol]) -> HashMap<(Symbol, usize), usize> {
+    let len = ir_block.ir_list.len();
     let mut last_use = sym_in_branch(&ir_block.exit)
         .into_iter()
-        .chain(non_locals)
-        .map(|s| (s, ir_block.ir_list.len()))
+        .chain(non_locals.iter().copied())
+        .map(|s| (s, len))
         .collect::<HashMap<_, _>>();
+
     let mut next_use = HashMap::new();
+    if let Some(reg) = sym_in_branch(&ir_block.exit) {
+        if non_locals.contains(&reg) {
+            next_use.insert((reg, len), len);
+        }
+    }
     for (i, ir) in ir_block.ir_list.iter().enumerate().rev() {
         let mut args = vec![];
         collect_ir_op(ir, &mut args);
