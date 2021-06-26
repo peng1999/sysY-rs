@@ -113,27 +113,22 @@ pub fn global_const_propagation(ir_graph: &mut IrGraph) {
     let prev_block = get_prev_block(ir_graph);
 
     // initialize
-    let mut in_const_sets = HashMap::new();
     let mut out_const_sets = HashMap::new();
 
     while {
         let mut modified = false;
 
-        // merge
         for label in &ir_graph.block_order {
+            // merge
+            let mut in_ = ConstSet::default();
             if let Some(sources) = prev_block.get(label) {
-                let mut in_ = ConstSet::default();
                 for src in sources.iter().map(|lbl| out_const_sets.get(lbl)).flatten() {
                     in_.merge_with(src);
                 }
-                in_const_sets.insert(*label, in_);
             }
-        }
 
-        // update
-        for (label, block) in &ir_graph.blocks {
-            let mut in_ = in_const_sets.remove(label).unwrap_or_default();
-
+            // update
+            let block = ir_graph.blocks.get(label).unwrap();
             for ir in &block.ir_list {
                 if let Some(result) = ir.result {
                     if let Some(val) = ConstVal::transfer_from(&ir.op, &in_) {
