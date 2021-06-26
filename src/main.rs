@@ -39,6 +39,14 @@ struct Opts {
     /// Source file
     #[clap(required = true)]
     input_file: PathBuf,
+
+    #[clap(
+        short = 'f',
+        multiple = false,
+        multiple_occurrences = true,
+        possible_values = &["gcp", "dce"]
+    )]
+    optimize_pass: Vec<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -76,7 +84,7 @@ fn main() -> anyhow::Result<()> {
             .filter_map(|(fn_sym, ir_vec)| ir_vec.as_ref().map(|v| (fn_sym, v)))
             .for_each(|(fn_sym, ir_vec)| ty::ty_check(*fn_sym, ir_vec, &mut ctx));
 
-        let ir_graph = fun_ir
+        let mut ir_graph = fun_ir
             .into_iter()
             .map(|(fn_sym, ir_vec)| (fn_sym, ir_vec.map(IrGraph::from_ir_vec)))
             .collect::<Vec<_>>();
@@ -84,6 +92,18 @@ fn main() -> anyhow::Result<()> {
         if opts.emit.as_deref() == Some("mir") {
             display_fun_ir(&mut output, ir_graph, &mut ctx)?;
             break 'exit;
+        }
+
+        // Optimization pass
+        for (_, fn_graph) in &mut ir_graph {
+            if let Some(fn_graph) = fn_graph {
+                for optimize in &opts.optimize_pass {
+                    match optimize.as_ref() {
+                        "gcp" => opt::flow::global_const_propagation(fn_graph),
+                        _ => unreachable!(),
+                    }
+                }
+            }
         }
 
         if opts.emit.as_deref() == Some("llvm") {

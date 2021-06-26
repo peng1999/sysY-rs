@@ -1,3 +1,5 @@
+pub mod flow;
+
 use std::collections::{HashMap, HashSet};
 
 use crate::{
