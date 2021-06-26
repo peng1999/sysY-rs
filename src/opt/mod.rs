@@ -33,7 +33,7 @@ fn sym_in_branch(br: &BranchOp) -> Option<Symbol> {
 pub fn find_block_nonlocal(ir_graph: &IrGraph) -> Vec<Symbol> {
     let mut counter = HashMap::new();
 
-    for (_, block) in &ir_graph.blocks {
+    for block in ir_graph.blocks.values() {
         let mut var_set = HashSet::new();
         for ir in &block.ir_list {
             collect_ir_op(ir, &mut var_set);

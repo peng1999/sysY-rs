@@ -120,7 +120,7 @@ fn sym_table_ty_assert_with_name() {
     sym_table.ty_assert_with_name(sym, ty.clone(), "abc".to_string());
     sym_table.ty_assert_with_name(sym, ty.clone(), "abc".to_string());
 
-    assert_eq!(sym_table.ty_of(sym), Some(ty.clone()));
+    assert_eq!(sym_table.ty_of(sym), Some(ty));
     assert_eq!(sym_table.name_of(sym), Some("abc"));
 }
 

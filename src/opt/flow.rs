@@ -11,11 +11,11 @@ fn get_prev_block(ir_graph: &IrGraph) -> HashMap<Label, Vec<Label>> {
         match ir_block.exit {
             BranchOp::Ret(_) => {}
             BranchOp::Goto(next) => {
-                prev_block.entry(next).or_insert(vec![]).push(*label);
+                prev_block.entry(next).or_insert_with(Vec::new).push(*label);
             }
             BranchOp::CondGoto(_, label1, label2) => {
                 for next in [label1, label2] {
-                    prev_block.entry(next).or_insert(vec![]).push(*label);
+                    prev_block.entry(next).or_insert_with(Vec::new).push(*label);
                 }
             }
         }
@@ -80,11 +80,11 @@ impl ConstVal {
     fn transfer_from(op: &OpArg, in_: &ConstSet) -> Option<ConstVal> {
         match op {
             OpArg::Unary { op, arg } => match op {
-                UnaryOp::Const => ConstVal::from_val(arg.clone(), &in_),
+                UnaryOp::Const => ConstVal::from_val(*arg, in_),
             },
             OpArg::Binary { op, arg1, arg2 } => {
-                let val1 = ConstVal::from_val(arg1.clone(), in_);
-                let val2 = ConstVal::from_val(arg2.clone(), in_);
+                let val1 = ConstVal::from_val(*arg1, in_);
+                let val2 = ConstVal::from_val(*arg2, in_);
                 match (val1, val2) {
                     (Some(val1), Some(val2)) => Some(eval_op(*op, val1, val2)),
                     (Some(ConstVal::NotConst), _) | (_, Some(ConstVal::NotConst)) => {
