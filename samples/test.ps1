@@ -4,7 +4,12 @@ function err($msg) {
     $host.ui.WriteErrorLine($msg)
 }
 
-$cpps = Get-ChildItem $PSScriptRoot -Filter "test*.cpp"
+if ($args) {
+    $cpps = $args | Get-ChildItem
+} else {
+    $cpps = Get-ChildItem $PSScriptRoot -Filter "test*.cpp"
+}
+
 $lib = Join-Path $PSScriptRoot "sysy.a"
 $exe = "/tmp/main"
 
@@ -25,6 +30,10 @@ $myexe = "/tmp/a.out"
 $myasm = "/tmp/main.s"
 $riscvexe = "/tmp/main1"
 
+$total = 0
+$passed = 0
+$riscvpassed = 0
+
 foreach ($cpp in $cpps) {
     Write-Output "`n=== $($cpp.Name) ==="
     # standard compiler
@@ -33,7 +42,7 @@ foreach ($cpp in $cpps) {
     & $compiler -o $myobj $cpp &&
         gcc -o $myexe $myobj
     if (-not $?) {
-        err "[$($cpp.Name)] Compile error"
+        err "Compile error"
         continue
     }
     # riscv32 backend
@@ -52,15 +61,17 @@ foreach ($cpp in $cpps) {
         } elseif ($i -gt 0) {
             break
         }
-        $truth = $in | & $exe
+        $total += 1
+
+        $truth = $in | & $exe | Out-String
         $status = $LASTEXITCODE
 
-        $out = $in | & $myexe
+        $out = $in | & $myexe | Out-String
         $mystatus = $LASTEXITCODE
 
         $riscvdiff = $False
         if ($riscvpass) {
-            $riscvout = $in | qemu-riscv32 $riscvexe
+            $riscvout = $in | qemu-riscv32 $riscvexe | Out-String
             $riscvstatus = $LASTEXITCODE
             $riscvdiff = ($riscvout -ne $truth) -or ($riscvstatus -ne $status)
         }
@@ -68,9 +79,20 @@ foreach ($cpp in $cpps) {
         Write-Output "stdin: '$in' stdout: '$truth' = $status"
         if (($out -ne $truth) -or ($mystatus -ne $status)) {
             err "sysy-rs: '$out' = $mystatus"
+        } else {
+            $passed += 1
         }
-        if ($riscvdiff -and $riscvpass) {
-            err "riscv-back: '$riscvout' = $riscvstatus"
+        if ($riscvpass) {
+            if ($riscvdiff) {
+                err "riscv-back: '$riscvout' = $riscvstatus"
+            } else {
+                $riscvpassed += 1
+            }
         }
     }
 }
+
+Write-Output "`n==========="
+Write-Output "Total tests: $total"
+Write-Output "LLVM passed: $passed"
+Write-Output "RISC-V passed: $riscvpassed"
