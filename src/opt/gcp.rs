@@ -1,27 +1,9 @@
 use std::collections::{hash_map::Entry, HashMap};
 
 use crate::{
-    ir::{BinaryOp, BranchOp, IrGraph, Label, OpArg, UnaryOp, Value},
+    ir::{BinaryOp, IrGraph, OpArg, UnaryOp, Value},
     sym_table::Symbol,
 };
-
-fn get_prev_block(ir_graph: &IrGraph) -> HashMap<Label, Vec<Label>> {
-    let mut prev_block = HashMap::new();
-    for (label, ir_block) in &ir_graph.blocks {
-        match ir_block.exit {
-            BranchOp::Ret(_) => {}
-            BranchOp::Goto(next) => {
-                prev_block.entry(next).or_insert_with(Vec::new).push(*label);
-            }
-            BranchOp::CondGoto(_, label1, label2) => {
-                for next in [label1, label2] {
-                    prev_block.entry(next).or_insert_with(Vec::new).push(*label);
-                }
-            }
-        }
-    }
-    prev_block
-}
 
 fn eval_op(op: BinaryOp, arg1: ConstVal, arg2: ConstVal) -> ConstVal {
     match (arg1, arg2) {
@@ -118,7 +100,7 @@ impl ConstSet {
 }
 
 pub fn global_const_propagation(ir_graph: &mut IrGraph) {
-    let prev_block = get_prev_block(ir_graph);
+    let prev_block = super::get_prev_block(ir_graph);
 
     // initialize
     let mut out_const_sets = HashMap::new();

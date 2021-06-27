@@ -94,7 +94,7 @@ fn main() -> anyhow::Result<()> {
             if let Some(fn_graph) = fn_graph {
                 for optimize in &opts.optimize_pass {
                     match optimize.as_ref() {
-                        "gcp" => opt::flow::global_const_propagation(fn_graph),
+                        "gcp" => opt::gcp::global_const_propagation(fn_graph),
                         _ => unreachable!(),
                     }
                 }

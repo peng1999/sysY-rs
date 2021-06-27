@@ -1,12 +1,13 @@
-pub mod flow;
+pub mod gcp;
 
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ir::{BranchOp, IrBlock, IrGraph, OpArg, Quaruple, Value},
+    ir::{BranchOp, IrBlock, IrGraph, Label, OpArg, Quaruple, Value},
     sym_table::Symbol,
 };
 
+/// 返回所有用到的Value
 fn collect_ir_values(ir: &mut Quaruple) -> Vec<&mut Value> {
     match &mut ir.op {
         OpArg::Arg(_) => vec![],
@@ -20,6 +21,7 @@ fn collect_ir_values(ir: &mut Quaruple) -> Vec<&mut Value> {
     }
 }
 
+/// 将IR语句中用到的变量加入set中
 fn collect_ir_op(ir: &Quaruple, set: &mut impl Extend<Symbol>) {
     match &ir.op {
         OpArg::Arg(_) => {}
@@ -43,6 +45,7 @@ fn sym_in_branch(br: &BranchOp) -> Option<Symbol> {
     }
 }
 
+/// 查找MIR中的非block局部变量
 pub fn find_block_nonlocal(ir_graph: &IrGraph) -> Vec<Symbol> {
     let mut counter = HashMap::new();
 
@@ -67,6 +70,7 @@ pub fn find_block_nonlocal(ir_graph: &IrGraph) -> Vec<Symbol> {
         .collect::<Vec<_>>()
 }
 
+/// 在Block中查找下一个使用变量的位置
 pub fn next_use_pos(ir_block: &IrBlock, non_locals: &[Symbol]) -> HashMap<(Symbol, usize), usize> {
     let len = ir_block.ir_list.len();
     let mut last_use = sym_in_branch(&ir_block.exit)
@@ -100,4 +104,23 @@ pub fn next_use_pos(ir_block: &IrBlock, non_locals: &[Symbol]) -> HashMap<(Symbo
         }
     }
     next_use
+}
+
+/// 计算Block的前趋
+fn get_prev_block(ir_graph: &IrGraph) -> HashMap<Label, Vec<Label>> {
+    let mut prev_block = HashMap::new();
+    for (label, ir_block) in &ir_graph.blocks {
+        match ir_block.exit {
+            BranchOp::Ret(_) => {}
+            BranchOp::Goto(next) => {
+                prev_block.entry(next).or_insert_with(Vec::new).push(*label);
+            }
+            BranchOp::CondGoto(_, label1, label2) => {
+                for next in [label1, label2] {
+                    prev_block.entry(next).or_insert_with(Vec::new).push(*label);
+                }
+            }
+        }
+    }
+    prev_block
 }
