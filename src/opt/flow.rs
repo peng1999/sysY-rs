@@ -67,6 +67,14 @@ impl ConstVal {
         }
     }
 
+    fn to_val(self) -> Option<Value> {
+        match self {
+            ConstVal::Int(v) => Some(Value::Int(v)),
+            ConstVal::Bool(v) => Some(Value::Bool(v)),
+            _ => None,
+        }
+    }
+
     fn merge(self: ConstVal, other: ConstVal) -> ConstVal {
         use ConstVal::*;
 
@@ -115,17 +123,21 @@ pub fn global_const_propagation(ir_graph: &mut IrGraph) {
     // initialize
     let mut out_const_sets = HashMap::new();
 
+    let merge_with_prev_block = |label, in_: &mut ConstSet, out_const_sets: &HashMap<_, _>| {
+        if let Some(sources) = prev_block.get(label) {
+            for src in sources.iter().map(|lbl| out_const_sets.get(lbl)).flatten() {
+                in_.merge_with(src);
+            }
+        }
+    };
+
     while {
         let mut modified = false;
 
         for label in &ir_graph.block_order {
             // merge
             let mut in_ = ConstSet::default();
-            if let Some(sources) = prev_block.get(label) {
-                for src in sources.iter().map(|lbl| out_const_sets.get(lbl)).flatten() {
-                    in_.merge_with(src);
-                }
-            }
+            merge_with_prev_block(label, &mut in_, &out_const_sets);
 
             // update
             let block = ir_graph.blocks.get(label).unwrap();
@@ -154,14 +166,40 @@ pub fn global_const_propagation(ir_graph: &mut IrGraph) {
         modified
     } {}
 
-    dbg!(out_const_sets
-        .iter()
-        .map(|(l, v)| (
-            l,
-            v.val
-                .iter()
-                .filter(|(_, &v)| v != ConstVal::NotConst)
-                .collect::<Vec<_>>()
-        ))
-        .collect::<Vec<_>>());
+    // dbg!(out_const_sets
+    //     .iter()
+    //     .map(|(l, v)| (
+    //         l,
+    //         v.val
+    //             .iter()
+    //             .filter(|(_, &v)| v != ConstVal::NotConst)
+    //             .collect::<Vec<_>>()
+    //     ))
+    //     .collect::<Vec<_>>());
+
+    // rewrite
+    for label in &ir_graph.block_order {
+        let mut in_ = ConstSet::default();
+        merge_with_prev_block(label, &mut in_, &out_const_sets);
+
+        let block = ir_graph.blocks.get_mut(label).unwrap();
+        for ir in &mut block.ir_list {
+            for value in super::collect_ir_values(ir) {
+                if let Some(sym) = value.into_reg() {
+                    if let Some(val) = in_.val.get(&sym).unwrap().to_val() {
+                        *value = val;
+                    }
+                }
+            }
+            if let Some(result) = ir.result {
+                if let Some(val) = ConstVal::transfer_from(&ir.op, &in_) {
+                    in_.val.insert(result, val);
+                    if let Some(val) = val.to_val() {
+                        ir.op = UnaryOp::Const.with_arg(val);
+                        continue;
+                    }
+                }
+            }
+        }
+    }
 }

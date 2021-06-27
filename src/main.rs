@@ -89,11 +89,6 @@ fn main() -> anyhow::Result<()> {
             .map(|(fn_sym, ir_vec)| (fn_sym, ir_vec.map(IrGraph::from_ir_vec)))
             .collect::<Vec<_>>();
 
-        if opts.emit.as_deref() == Some("mir") {
-            display_fun_ir(&mut output, ir_graph, &mut ctx)?;
-            break 'exit;
-        }
-
         // Optimization pass
         for (_, fn_graph) in &mut ir_graph {
             if let Some(fn_graph) = fn_graph {
@@ -104,6 +99,11 @@ fn main() -> anyhow::Result<()> {
                     }
                 }
             }
+        }
+
+        if opts.emit.as_deref() == Some("mir") {
+            display_fun_ir(&mut output, ir_graph, &mut ctx)?;
+            break 'exit;
         }
 
         if opts.emit.as_deref() == Some("llvm") {

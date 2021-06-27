@@ -231,10 +231,9 @@ pub fn trans_items(items: Vec<Item>, ctx: &mut Context) -> Vec<(Symbol, Option<I
                     ir_vec.push(OpArg::Arg(n).with_result(Some(sym)));
                 }
                 trans_stmts(stmts, &mut ir_vec, ctx);
-                let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fn_ret_ty();
-                if ret_ty == Ty::Void {
-                    ir_vec.push(BranchOp::Ret(None));
-                }
+
+                ir_vec.push(BranchOp::Ret(None));
+
                 ctx.sym_end_scope();
                 ctx.sym_table.clear_current_fn();
 

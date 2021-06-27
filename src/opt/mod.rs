@@ -3,9 +3,22 @@ pub mod flow;
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ir::{BranchOp, IrBlock, IrGraph, OpArg, Quaruple},
+    ir::{BranchOp, IrBlock, IrGraph, OpArg, Quaruple, Value},
     sym_table::Symbol,
 };
+
+fn collect_ir_values(ir: &mut Quaruple) -> Vec<&mut Value> {
+    match &mut ir.op {
+        OpArg::Arg(_) => vec![],
+        OpArg::Unary { op: _, arg } => vec![arg],
+        OpArg::Binary { op: _, arg1, arg2 } => {
+            vec![arg1, arg2]
+        }
+        OpArg::Call { args, .. }
+        | OpArg::LoadArr { idx: args, .. }
+        | OpArg::StoreArr { idx: args, .. } => args.iter_mut().collect(),
+    }
+}
 
 fn collect_ir_op(ir: &Quaruple, set: &mut impl Extend<Symbol>) {
     match &ir.op {
