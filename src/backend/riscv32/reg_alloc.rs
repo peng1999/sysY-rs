@@ -95,7 +95,7 @@ impl LocalRegAllocator {
 pub(super) fn emit_spill_all(ctx: &mut Context) -> anyhow::Result<()> {
     let kv = ctx.reg_allocator.spill_all();
     for (reg, sym) in kv {
-        emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&sym], ctx)?;
+        emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&sym], ctx, false)?;
     }
     Ok(())
 }
@@ -106,7 +106,7 @@ pub(super) fn emit_reg_alloc_tmp(ctx: &mut Context) -> anyhow::Result<RiscVReg> 
         reg
     } else {
         let (reg, sym) = ctx.reg_allocator.spill_furthest_sym();
-        emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&sym], ctx)?;
+        emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&sym], ctx, false)?;
         reg
     };
     Ok(reg)
@@ -126,13 +126,7 @@ pub(super) fn emit_reg_alloc(sym: Symbol, ctx: &mut Context) -> anyhow::Result<R
 
 /// 分配寄存器，不读初值
 pub(super) fn emit_input_reg_alloc(sym: Symbol, ctx: &mut Context) -> anyhow::Result<RiscVReg> {
-    let result = if let Some(reg) = ctx.reg_allocator.free_reg.pop() {
-        ctx.reg_allocator.reg_lookup.insert(reg, sym);
-        reg
-    } else {
-        let (reg, out_sym) = ctx.reg_allocator.spill_furthest_sym();
-        emit_store_operand(Operand::Reg(reg), ctx.stack_alloc[&out_sym], ctx)?;
-        reg
-    };
+    let result = emit_reg_alloc_tmp(ctx)?;
+    ctx.reg_allocator.reg_lookup.insert(result, sym);
     Ok(result)
 }

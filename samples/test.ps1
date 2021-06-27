@@ -12,6 +12,7 @@ if ($args) {
 
 $lib = Join-Path $PSScriptRoot "sysy.a"
 $exe = "/tmp/main"
+$flags = "-fgcp"
 
 $projectMeta = cargo metadata --format-version 1 | ConvertFrom-Json
 $targetRoot = $projectMeta.target_directory
@@ -39,15 +40,16 @@ foreach ($cpp in $cpps) {
     # standard compiler
     gcc -o $exe $cpp $lib
     # llvm backend
-    & $compiler -o $myobj $cpp &&
+    & $compiler -o $myobj $flags $cpp &&
         gcc -o $myexe $myobj
     if (-not $?) {
         err "Compile error"
+        $total += 1
         continue
     }
     # riscv32 backend
     $riscvpass = $True
-    & $compiler -o $myasm --emit=riscv $cpp &&
+    & $compiler -o $myasm --emit=riscv $flags $cpp &&
         pwsh samples/riscv32-elf-gcc.ps1 $myasm "main1"
     if (-not $?) {
         err "RISC-V Compile error"

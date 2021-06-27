@@ -170,10 +170,13 @@ fn emit_load_stack(val: Stack, target: RiscVReg, ctx: &mut Context) -> anyhow::R
 }
 
 /// Store operand to specific stack position.
-fn emit_store_operand(val: Operand, stack: Stack, ctx: &mut Context) -> anyhow::Result<()> {
+fn emit_store_operand(val: Operand, stack: Stack, ctx: &mut Context, free: bool) -> anyhow::Result<()> {
     let reg = emit_operand_as_reg(val, ctx)?;
     let s = size_suffix(stack.size);
     writeln!(ctx.file, "s{} {}, {}(sp)", s, reg, stack.offset)?;
+    if free {
+        ctx.reg_allocator.reg_free(reg);
+    }
     Ok(())
 }
 
@@ -216,19 +219,19 @@ fn emit_call(
             emit_operand_to_reg(asm_value, target, ctx)?;
         } else {
             let target_offset = 4 * (i as i32 - arg_cnt);
-            emit_store_operand(asm_value, Stack::new(target_offset, 4), ctx)?;
+            emit_store_operand(asm_value, Stack::new(target_offset, 4), ctx, true)?;
         };
         if let Some(reg) = asm_value.into_reg() {
             ctx.reg_allocator.reg_free(reg);
         }
     }
     emit_spill_all(ctx)?;
-    if arg_cnt >= 8 {
+    if arg_cnt > 8 {
         writeln!(ctx.file, "addi sp, sp, {}", -(arg_cnt - 8) * 4)?;
     }
     let name = ctx.sym_table.name_of(fn_sym).unwrap();
     writeln!(ctx.file, "call {}", name)?;
-    if arg_cnt >= 8 {
+    if arg_cnt > 8 {
         writeln!(ctx.file, "addi sp, sp, {}", (arg_cnt - 8) * 4)?;
     }
     let ret_ty = ctx.sym_table.ty_of(fn_sym).unwrap().fn_ret_ty();
