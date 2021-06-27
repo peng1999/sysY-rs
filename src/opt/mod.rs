@@ -1,4 +1,5 @@
 pub mod gcp;
+pub mod graph;
 
 use std::collections::{HashMap, HashSet};
 
@@ -42,6 +43,18 @@ fn sym_in_branch(br: &BranchOp) -> Option<Symbol> {
     match br {
         BranchOp::CondGoto(v, _, _) => v.into_reg(),
         _ => None,
+    }
+}
+
+fn collect_branch_next(br: &BranchOp) -> Vec<Label> {
+    match br {
+        BranchOp::Ret(_) => vec![],
+        BranchOp::Goto(next) => {
+            vec![*next]
+        }
+        BranchOp::CondGoto(_, label1, label2) => {
+            vec![*label1, *label2] 
+        }
     }
 }
 
@@ -110,16 +123,8 @@ pub fn next_use_pos(ir_block: &IrBlock, non_locals: &[Symbol]) -> HashMap<(Symbo
 fn get_prev_block(ir_graph: &IrGraph) -> HashMap<Label, Vec<Label>> {
     let mut prev_block = HashMap::new();
     for (label, ir_block) in &ir_graph.blocks {
-        match ir_block.exit {
-            BranchOp::Ret(_) => {}
-            BranchOp::Goto(next) => {
-                prev_block.entry(next).or_insert_with(Vec::new).push(*label);
-            }
-            BranchOp::CondGoto(_, label1, label2) => {
-                for next in [label1, label2] {
-                    prev_block.entry(next).or_insert_with(Vec::new).push(*label);
-                }
-            }
+        for next in collect_branch_next(&ir_block.exit) {
+            prev_block.entry(next).or_insert_with(Vec::new).push(*label);
         }
     }
     prev_block

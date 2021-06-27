@@ -98,6 +98,7 @@ fn main() -> anyhow::Result<()> {
                         _ => unreachable!(),
                     }
                 }
+                opt::graph::remove_unreachable_block(fn_graph);
             }
         }
 
