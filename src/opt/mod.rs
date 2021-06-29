@@ -1,3 +1,4 @@
+pub mod dce;
 pub mod gcp;
 pub mod graph;
 
@@ -41,6 +42,7 @@ fn collect_ir_op(ir: &Quaruple, set: &mut impl Extend<Symbol>) {
 
 fn sym_in_branch(br: &BranchOp) -> Option<Symbol> {
     match br {
+        BranchOp::Ret(v) => v.and_then(Value::into_reg),
         BranchOp::CondGoto(v, _, _) => v.into_reg(),
         _ => None,
     }
