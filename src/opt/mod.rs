@@ -2,7 +2,10 @@ pub mod dce;
 pub mod gcp;
 pub mod graph;
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    hash::Hash,
+};
 
 use crate::{
     ir::{BranchOp, IrBlock, IrGraph, Label, OpArg, Quaruple, Value},
@@ -55,7 +58,7 @@ fn collect_branch_next(br: &BranchOp) -> Vec<Label> {
             vec![*next]
         }
         BranchOp::CondGoto(_, label1, label2) => {
-            vec![*label1, *label2] 
+            vec![*label1, *label2]
         }
     }
 }
@@ -130,4 +133,27 @@ fn get_prev_block(ir_graph: &IrGraph) -> HashMap<Label, Vec<Label>> {
         }
     }
     prev_block
+}
+
+fn insert_or_modify<K, V>(map: &mut HashMap<K, V>, key: K, value: V) -> bool
+where
+    K: Eq + Hash,
+    V: Eq,
+{
+    let mut modified = false;
+
+    match map.entry(key) {
+        Entry::Occupied(mut in_) => {
+            if in_.get() != &value {
+                modified = true;
+                in_.insert(value);
+            }
+        }
+        Entry::Vacant(entry) => {
+            modified = true;
+            entry.insert(value);
+        }
+    }
+
+    modified
 }

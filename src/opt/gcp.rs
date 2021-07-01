@@ -1,4 +1,4 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::HashMap;
 
 use crate::{
     ir::{BinaryOp, IrGraph, OpArg, UnaryOp, Value},
@@ -131,18 +131,7 @@ pub fn global_const_propagation(ir_graph: &mut IrGraph) {
                 }
             }
 
-            match out_const_sets.entry(label) {
-                Entry::Occupied(mut out) => {
-                    if out.get() != &in_ {
-                        modified = true;
-                        out.insert(in_);
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    modified = true;
-                    entry.insert(in_);
-                }
-            }
+            modified = modified || super::insert_or_modify(&mut out_const_sets, label, in_);
         }
 
         modified

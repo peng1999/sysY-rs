@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     mem,
 };
 
@@ -66,18 +66,7 @@ pub fn dead_code_elimation(ir_graph: &mut IrGraph) {
                 }
             }
 
-            match in_var_set.entry(label) {
-                Entry::Occupied(mut in_) => {
-                    if in_.get() != &out {
-                        modified = true;
-                        in_.insert(out);
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    modified = true;
-                    entry.insert(out);
-                }
-            }
+            modified = modified || super::insert_or_modify(&mut in_var_set, label, out);
         }
 
         modified
