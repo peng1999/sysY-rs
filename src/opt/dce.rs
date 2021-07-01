@@ -14,8 +14,8 @@ type VarSet = HashSet<Symbol>;
 
 fn is_pure(op: &OpArg) -> bool {
     match op {
-        OpArg::Arg(_) | OpArg::Unary { .. } | OpArg::Binary { .. } => true,
-        OpArg::Call { .. } | OpArg::LoadArr { .. } | OpArg::StoreArr { .. } => false,
+        OpArg::Arg(_) | OpArg::Unary { .. } | OpArg::Binary { .. } | OpArg::LoadArr { .. } => true,
+        OpArg::Call { .. } | OpArg::StoreArr { .. } => false,
     }
 }
 
@@ -33,7 +33,7 @@ fn merge_with_next_block(
     out
 }
 
-pub fn dead_code_elimation(ir_graph: &mut IrGraph) {
+pub fn dead_code_elimination(ir_graph: &mut IrGraph) {
     // initialize
     let mut in_var_set = HashMap::new();
 

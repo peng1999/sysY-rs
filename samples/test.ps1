@@ -12,7 +12,7 @@ if ($args) {
 
 $lib = Join-Path $PSScriptRoot "sysy.a"
 $exe = "/tmp/main"
-$flags = "-fgcp"
+$flags = "-fgcp", "-fdce"
 
 $projectMeta = cargo metadata --format-version 1 | ConvertFrom-Json
 $targetRoot = $projectMeta.target_directory

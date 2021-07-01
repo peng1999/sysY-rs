@@ -35,10 +35,12 @@ fn collect_ir_op(ir: &Quaruple, set: &mut impl Extend<Symbol>) {
             set.extend(arg1.into_reg().into_iter());
             set.extend(arg2.into_reg().into_iter());
         }
-        OpArg::Call { args, .. }
-        | OpArg::LoadArr { idx: args, .. }
-        | OpArg::StoreArr { idx: args, .. } => {
-            set.extend(args.iter().map(|v| v.into_reg()).flatten())
+        OpArg::Call { args, .. } | OpArg::LoadArr { idx: args, .. } => {
+            set.extend(args.iter().map(|v| v.into_reg()).flatten());
+        }
+        OpArg::StoreArr { idx: args, val, .. } => {
+            set.extend(args.iter().map(|v| v.into_reg()).flatten());
+            set.extend(val.into_reg().into_iter());
         }
     }
 }

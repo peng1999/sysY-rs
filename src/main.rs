@@ -95,7 +95,7 @@ fn main() -> anyhow::Result<()> {
                 for optimize in &opts.optimize_pass {
                     match optimize.as_ref() {
                         "gcp" => opt::gcp::global_const_propagation(fn_graph),
-                        "dce" => opt::dce::dead_code_elimation(fn_graph),
+                        "dce" => opt::dce::dead_code_elimination(fn_graph),
                         _ => unreachable!(),
                     }
                 }
