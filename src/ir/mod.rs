@@ -1,7 +1,3 @@
-mod display;
-mod quaruple;
-mod trans;
-
 use std::{collections::HashMap, convert::TryFrom};
 
 use itertools::Itertools;
@@ -10,6 +6,10 @@ use crate::sym_table::Symbol;
 
 pub use quaruple::{BinaryOp, OpArg, Quaruple, UnaryOp};
 pub use trans::trans_items;
+
+mod display;
+mod quaruple;
+mod trans;
 
 /// The linear intermediate representation.
 ///

@@ -7,6 +7,12 @@
 #[macro_use]
 extern crate lalrpop_util;
 
+use std::{fmt::Display, fs, io::Write, path::PathBuf};
+
+use clap::{AppSettings, Clap};
+
+use crate::{context::Context, error::LogResult, ir::IrGraph, sym_table::Symbol};
+
 lalrpop_mod! {
     #[allow(clippy::all)]
     pub syntax
@@ -19,12 +25,6 @@ mod ir;
 mod opt;
 mod sym_table;
 mod ty;
-
-use std::{fmt::Display, fs, io::Write, path::PathBuf};
-
-use clap::{AppSettings, Clap};
-
-use crate::{context::Context, error::LogResult, ir::IrGraph, sym_table::Symbol};
 
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]

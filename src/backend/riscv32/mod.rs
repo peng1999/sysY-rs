@@ -1,5 +1,3 @@
-mod reg_alloc;
-
 use std::{
     collections::HashMap,
     fmt::{Display, Formatter},
@@ -18,6 +16,8 @@ use crate::{
 };
 
 use self::{reg_alloc::LocalRegAllocator, RiscVReg::*};
+
+mod reg_alloc;
 
 struct Context<'a> {
     sym_table: SymTable,

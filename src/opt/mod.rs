@@ -1,7 +1,3 @@
-pub mod dce;
-pub mod gcp;
-pub mod graph;
-
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     hash::Hash,
@@ -11,6 +7,10 @@ use crate::{
     ir::{BranchOp, IrBlock, IrGraph, Label, OpArg, Quaruple, Value},
     sym_table::Symbol,
 };
+
+pub mod dce;
+pub mod gcp;
+pub mod graph;
 
 /// 返回所有用到的Value
 fn collect_ir_values(ir: &mut Quaruple) -> Vec<&mut Value> {
