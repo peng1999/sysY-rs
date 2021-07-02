@@ -145,7 +145,9 @@ fn trans_stmt(stmt: Stmt, ir_vec: &mut IrVec, ctx: &mut Context) {
                 ctx.sym_insert(name).unwrap_or_log(ctx)
             };
             // 类型断言需要在有AST时进行处理
-            ctx.sym_table.ty_assert(ident, ty);
+            if let Some(ty) = ty {
+                ctx.sym_table.ty_assert(ident, ty);
+            }
         }
         Assign(name, expr) => {
             let name_span = name.span();

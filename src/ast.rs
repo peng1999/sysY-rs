@@ -52,7 +52,7 @@ pub struct FnHead {
 #[derive(Debug)]
 pub enum Stmt {
     Block(Vec<Stmt>),
-    Decl(TyBasic, IString, Option<Expr>),
+    Decl(Option<TyBasic>, IString, Option<Expr>),
     Assign(Expr, Expr),
     Expr(Expr),
     If(Expr, Box<Stmt>, Box<Stmt>),

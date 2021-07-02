@@ -11,7 +11,7 @@ match {
     "(", ")", "{", "}", "[", "]", ";", ",",
     "==", "!=", "<", ">", "<=", ">=", "=", "||", "&&",
     "+", "-", "*", "/", "!", "%",
-    "if", "else", "while", "return", "true", "false", "break", "continue",
+    "if", "else", "while", "return", "true", "false", "break", "continue", "auto",
     r"[a-zA-Z][a-zA-Z0-9]*",
     r"[0-9]+",
     r"\s*" => { }, // 忽略空白
@@ -87,12 +87,16 @@ StmtOther: ast::Stmt = {
 Decl: ast::Stmt = {
     <tn:TypedName> "=" <v:Expr> ";" => {
         let (ty, sym_n) = tn;
-        ast::Stmt::Decl(ty, sym_n, Some(v))
+        ast::Stmt::Decl(Some(ty), sym_n, Some(v))
     },
     <tn:TypedName> ";" => {
         let (ty, sym_n) = tn;
-        ast::Stmt::Decl(ty, sym_n, None)
+        ast::Stmt::Decl(Some(ty), sym_n, None)
     },
+    "auto" <n:Ident> "=" <v:Expr> ";" => {
+        let sym_n = ctx.interner.get_or_intern(n);
+        ast::Stmt::Decl(None, sym_n, Some(v))
+    }
 }
 
 Expr: ast::Expr = LogicExpr;
