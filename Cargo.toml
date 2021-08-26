@@ -16,7 +16,7 @@ inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm11-0"]
 itertools = "0.10.1"
 lalrpop-util = "0.19.6"
 regex = "1.5.4"
-string-interner = "0.12.2"
+string-interner = "0.13.0"
 
 [build-dependencies]
 lalrpop = "0.19.6"
