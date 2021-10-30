@@ -9,7 +9,7 @@ extern crate lalrpop_util;
 
 use std::{fmt::Display, fs, io::Write, path::PathBuf};
 
-use clap::{AppSettings, Clap};
+use clap::Parser;
 
 use crate::{context::Context, error::LogResult, ir::IrGraph, sym_table::Symbol};
 
@@ -26,8 +26,7 @@ mod opt;
 mod sym_table;
 mod ty;
 
-#[derive(Clap)]
-#[clap(setting = AppSettings::ColoredHelp)]
+#[derive(Parser)]
 struct Opts {
     #[clap(long, possible_values = &["ast", "ir", "mir", "llvm", "riscv"])]
     emit: Option<String>,
@@ -42,7 +41,6 @@ struct Opts {
 
     #[clap(
         short = 'f',
-        multiple = false,
         multiple_occurrences = true,
         possible_values = &["gcp", "dce"]
     )]
