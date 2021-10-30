@@ -53,9 +53,13 @@ where
         param_types: &[BasicTypeEnum<'ctx>],
         is_var_args: bool,
     ) -> FunctionType<'ctx> {
+        let param_types = param_types
+            .iter()
+            .map(|v| v.clone().into())
+            .collect::<Vec<_>>();
         match self.as_any_type_enum() {
-            AnyTypeEnum::IntType(ty) => ty.fn_type(param_types, is_var_args),
-            AnyTypeEnum::VoidType(ty) => ty.fn_type(param_types, is_var_args),
+            AnyTypeEnum::IntType(ty) => ty.fn_type(&param_types, is_var_args),
+            AnyTypeEnum::VoidType(ty) => ty.fn_type(&param_types, is_var_args),
             o => unimplemented!("{:?}", o),
         }
     }
@@ -225,7 +229,7 @@ fn trans_quaruple(quaruple: ir::Quaruple, ctx: &mut Context) {
             let fn_sym = ctx.sym_fn[&fn_val];
             let args = args
                 .into_iter()
-                .map(|arg| get_basic_value(arg, ctx))
+                .map(|arg| get_basic_value(arg, ctx).into())
                 .collect::<Vec<_>>();
             ctx.builder
                 .build_call(fn_sym, &args, "")
