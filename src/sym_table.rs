@@ -16,11 +16,6 @@ pub struct SymTable {
     current_fn: Option<Symbol>,
 }
 
-#[derive(Debug)]
-pub struct FnTable {
-    fn_decl: HashMap<Symbol, (Vec<Ty>, Ty)>,
-}
-
 impl SymTable {
     pub fn new() -> SymTable {
         SymTable {
