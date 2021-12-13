@@ -10,7 +10,7 @@ exclude = ["/samples"]
 
 [dependencies]
 anyhow = "1.0.47"
-clap = { version = "3.0.0-beta.5", features = ["wrap_help"] }
+clap = { version = "3.0.0-rc.4", features = ["wrap_help"] }
 either = "1.6.1"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm11-0"] }
 itertools = "0.10.3"
