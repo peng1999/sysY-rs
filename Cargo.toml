@@ -15,7 +15,7 @@ either = "1.6.1"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm11-0"] }
 itertools = "0.10.3"
 lalrpop-util = "0.19.7"
-regex = "1.5.4"
+regex = "1.5.5"
 string-interner = "0.14.0"
 
 [build-dependencies]
