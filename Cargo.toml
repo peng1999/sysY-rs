@@ -14,7 +14,7 @@ clap = { version = "3.1.15", features = ["derive", "wrap_help"] }
 either = "1.6.1"
 inkwell = { git = "https://github.com/TheDan64/inkwell", features = ["llvm11-0"] }
 itertools = "0.10.3"
-lalrpop-util = "0.19.7"
+lalrpop-util = "0.19.8"
 regex = "1.5.5"
 string-interner = "0.14.0"
 
