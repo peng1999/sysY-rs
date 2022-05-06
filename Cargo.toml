@@ -19,4 +19,4 @@ regex = "1.5.5"
 string-interner = "0.14.0"
 
 [build-dependencies]
-lalrpop = "0.19.7"
+lalrpop = "0.19.8"
