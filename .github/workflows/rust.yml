@@ -26,5 +26,6 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-
     - name: Check
       run: |
+        apt update && apt install -y libclang-11-dev
         rustup toolchain add nightly
         rustup run nightly cargo check --verbose
