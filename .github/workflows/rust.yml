@@ -26,6 +26,7 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-
     - name: Check
       run: |
-        sudo apt update && sudo apt install -y libclang-11-dev
+        sudo apt update && sudo apt install -y llvm-11-dev libclang-11-dev
+        export LLVM_SYS_110_PREFIX=/usr/lib/llvm-11/
         rustup toolchain add nightly
         rustup run nightly cargo check --verbose
