@@ -1,7 +1,4 @@
 #![feature(map_try_insert)]
-#![feature(result_cloned)]
-#![feature(label_break_value)]
-#![feature(bool_to_option)]
 #![allow(clippy::new_without_default)]
 
 #[macro_use]
@@ -28,7 +25,7 @@ mod ty;
 
 #[derive(Parser)]
 struct Opts {
-    #[clap(long, possible_values = &["ast", "ir", "mir", "llvm", "riscv"])]
+    #[clap(long, value_parser = ["ast", "ir", "mir", "llvm", "riscv"])]
     emit: Option<String>,
 
     /// Output file
@@ -41,8 +38,8 @@ struct Opts {
 
     #[clap(
         short = 'f',
-        multiple_occurrences = true,
-        possible_values = &["gcp", "dce"]
+        action = clap::ArgAction::Append,
+        value_parser = ["gcp", "dce"]
     )]
     optimize_pass: Vec<String>,
 }
